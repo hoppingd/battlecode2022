@@ -11,8 +11,8 @@ apply plugin: 'eclipse'
 
 
 ext.versions = [
-    battlecode: new File(projectDir, "version.txt").text.trim()
-    //scala: '2.11.7'
+        battlecode: new File(projectDir, "version.txt").text.trim()
+        //scala: '2.11.7'
 ]
 
 
@@ -64,8 +64,8 @@ configurations {
 // Download a different version of the client depending on the local OS.
 def os = System.getProperty("os.name").toLowerCase()
 def clientName = os.startsWith('windows') ? 'battlecode22-client-win' :
-                 os.startsWith('mac') ? 'battlecode22-client-mac' :
-                 'battlecode22-client-linux'
+        os.startsWith('mac') ? 'battlecode22-client-mac' :
+                'battlecode22-client-linux'
 
 // The dependencies of this project.
 dependencies {
@@ -114,7 +114,7 @@ repositories {
 
 
 static String getVersionFromWeb() {
-    
+
     String[] urls = ["https://play.battlecode.org/versions/2022/version.txt"]
     String version = null
 
@@ -201,18 +201,18 @@ task run(type: JavaExec, dependsOn: 'build') {
     classpath = sourceSets.main.runtimeClasspath
     args = ['-c=-']
     jvmArgs = [
-        '-Dbc.server.mode=headless',
-        '-Dbc.server.map-path=maps',
-        '-Dbc.server.robot-player-to-system-out='+project.property('outputVerbose'),
-        '-Dbc.server.debug=true',
-        '-Dbc.engine.debug-methods=true',
-        '-Dbc.engine.enable-profiler='+project.property('profilerEnabled'),
-        '-Dbc.game.team-a='+project.property('teamA'),
-        '-Dbc.game.team-b='+project.property('teamB'),
-        '-Dbc.game.team-a.url='+project.property('classLocation'),
-        '-Dbc.game.team-b.url='+project.property('classLocation'),
-        '-Dbc.game.maps='+project.property('maps'),
-        '-Dbc.server.save-file=' +project.property('replay')
+            '-Dbc.server.mode=headless',
+            '-Dbc.server.map-path=maps',
+            '-Dbc.server.robot-player-to-system-out='+project.property('outputVerbose'),
+            '-Dbc.server.debug=true',
+            '-Dbc.engine.debug-methods=true',
+            '-Dbc.engine.enable-profiler='+project.property('profilerEnabled'),
+            '-Dbc.game.team-a='+project.property('teamA'),
+            '-Dbc.game.team-b='+project.property('teamB'),
+            '-Dbc.game.team-a.url='+project.property('classLocation'),
+            '-Dbc.game.team-b.url='+project.property('classLocation'),
+            '-Dbc.game.maps='+project.property('maps'),
+            '-Dbc.server.save-file=' +project.property('replay')
     ]
 }
 task runFromClient(type: JavaExec, dependsOn: 'build') {
@@ -224,7 +224,7 @@ task runFromClient(type: JavaExec, dependsOn: 'build') {
             '-Dbc.server.mode=headless',
             '-Dbc.server.map-path=maps',
             '-Dbc.server.debug=false',
-            '-Dbc.server.robot-player-to-system-out=false',
+            '-Dbc.server.robot-player-to-system-out='+project.property('outputVerbose'),
             '-Dbc.engine.debug-methods=true',
             '-Dbc.engine.enable-profiler='+project.property('profilerEnabled'),
             '-Dbc.game.team-a='+project.property('teamA'),
@@ -267,8 +267,8 @@ task listPlayers {
         sourceSets.main.allSource.each {
             println it.name
             if (it.getName().equals('RobotPlayer.java')
-                || it.getName().equals('RobotPlayer.scala')
-                ) {
+                    || it.getName().equals('RobotPlayer.scala')
+            ) {
                 URI base = new File(project.projectDir, 'src').toURI()
                 URI full = it.toURI()
                 String path = base.relativize(full).toString()
