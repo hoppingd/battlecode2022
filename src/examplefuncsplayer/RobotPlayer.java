@@ -135,12 +135,6 @@ public strictfp class RobotPlayer {
                 MapLocation mineLocation = new MapLocation(me.x + dx, me.y + dy);
                 // Notice that the Miner's action cooldown is very low.
                 // You can mine multiple times per turn!
-                while (rc.canMineGold(mineLocation)) {
-                    rc.mineGold(mineLocation);
-                }
-                while (rc.canMineLead(mineLocation)) {
-                    rc.mineLead(mineLocation);
-                }
             }
         }
 
