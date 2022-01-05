@@ -68,19 +68,20 @@ public class Miner extends MyRobot {
     }
 
     void play() {
+        // mine
+        try {
+            while (rc.canMineGold(myLoc)) { // right now we only mine if we are directly above the deposit
+                rc.mineGold(myLoc); // we also deplete the entire mine, and if at any point we are above a resource we mine it
+            }
+            while (rc.canMineLead(myLoc)) {
+                rc.mineLead(myLoc);
+            }
+            bestMine = null;
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
         // probably read comms here to make sure we weren't created to mine a specific location
         if (destination == null) {
-            try {
-                while (rc.canMineGold(myLoc)) { // right now we only mine if we are directly above the deposit
-                    rc.mineGold(myLoc); // we also deplete the entire mine
-                }
-                while (rc.canMineLead(myLoc)) {
-                    rc.mineLead(myLoc);
-                }
-                bestMine = null;
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
             if (bestMine == null) checkCells(); // look for a mine. right now we check all cells no matter what
             destination = bestMine;
         }
