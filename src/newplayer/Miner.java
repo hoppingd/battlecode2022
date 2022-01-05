@@ -10,7 +10,6 @@ import java.util.HashSet;
 
 public class Miner extends MyRobot {
 
-    final int VISION_RADIUS_SQUARED = 20;
     final int EXPLORE_BIT = 0x80;
     final int RUBBLE_BITS = 0x7F;
     RobotController rc;
@@ -36,7 +35,7 @@ public class Miner extends MyRobot {
         bestMine = null;
         int bestGold = 0;
         try {
-            MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, VISION_RADIUS_SQUARED);
+            MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells) {
                 if (!rc.canSenseLocation(cell)) continue;
                 int lead = rc.senseLead(cell);
