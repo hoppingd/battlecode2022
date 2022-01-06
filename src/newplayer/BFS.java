@@ -58,9 +58,9 @@ public abstract class BFS {
 
         if (!greedy && turnsGreedy <= 0){
 
-            System.err.println("Using bfs");
+            //System.err.println("Using bfs");
             Direction dir = getBestDir(target);
-            System.err.println("bfs chose" + dir);
+            //System.err.println("bfs chose" + dir);
             if (dir != null && !mapTracker.check(rc.getLocation().add(dir))){
                 try{
                     if (!rc.canMove(dir)) return;
