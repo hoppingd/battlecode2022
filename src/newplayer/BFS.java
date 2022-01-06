@@ -60,7 +60,6 @@ public abstract class BFS {
 
             //System.err.println("Using bfs");
             Direction dir = getBestDir(target);
-            //System.err.println("bfs chose" + dir);
             if (dir != null && !mapTracker.check(rc.getLocation().add(dir))){
                 try{
                     if (!rc.canMove(dir)) return;
