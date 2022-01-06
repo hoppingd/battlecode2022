@@ -4,41 +4,22 @@ import battlecode.common.*;
 
 public class Archon extends MyRobot {
 
-
-    final int EXPLORER_1_TYPE = 0;
-    final int EXPLORER_2_TYPE = 1;
-    final int ATTACKER_TYPE = 2;
-    final int EXPLORE_2_BYTECODE_REMAINING = 2000;
-
-    int myType;
-    boolean moved = false;
-
-    int exploreRounds;
-
     Team myTeam, enemyTeam;
-
-    int birthday;
-
-    final static int EC_DELAY = 100;
 
     int minersBuilt;
     int depositsDetected;
 
     public Archon(RobotController rc){
         super(rc);
-        myType = EXPLORER_1_TYPE;
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
-        birthday = rc.getRoundNum();
     }
 
     public void play(){
         if (minersBuilt < 1) {
             getMines();
         }
-        moved = false;
         tryBuild();
-        tryMove();
     }
 
     void tryBuild(){
@@ -67,10 +48,6 @@ public class Archon extends MyRobot {
                 }
             }
         }
-    }
-
-    void tryMove(){
-
     }
 
     /*boolean goToEnemyHQ(){

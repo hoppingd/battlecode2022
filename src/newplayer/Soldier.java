@@ -4,49 +4,44 @@ import battlecode.common.*;
 
 public class Soldier extends MyRobot {
 
-
-    final int EXPLORER_1_TYPE = 0;
-    final int EXPLORER_2_TYPE = 1;
-    final int ATTACKER_TYPE = 2;
-    final int EXPLORE_2_BYTECODE_REMAINING = 2000;
-
-    int myType;
     boolean moved = false;
-
-    int exploreRounds;
 
     Team myTeam, enemyTeam;
 
-    int birthday;
-
-    final static int EC_DELAY = 100;
-
     public Soldier(RobotController rc){
         super(rc);
-        myType = EXPLORER_1_TYPE;
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
-        birthday = rc.getRoundNum();
     }
 
     public void play(){
         moved = false;
         tryAttack();
         tryMove();
-        //updateECs();
     }
 
-    void tryAttack(){
+    void tryAttack(){ // will shoot closest target
+        MapLocation myLoc = rc.getLocation();
         RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
-        if (enemies.length > 1) {
-            try {
-                if (rc.canAttack(enemies[0].location)) { // don't really care about priority right now
-                    rc.attack(enemies[0].location);
+        MapLocation bestLoc = null;
+        int bestDist = 10000;
+        for (RobotInfo r : enemies){
+            MapLocation enemyLoc = r.getLocation();
+            if (rc.canAttack(r.getLocation())){
+                int dist = myLoc.distanceSquaredTo(enemyLoc);
+                if (dist < bestDist) {
+                    bestDist = dist;
+                    bestLoc = enemyLoc;
                 }
-            } catch (Throwable t) {
-                t.printStackTrace();
             }
         }
+        try {
+            if (bestLoc != null) rc.attack(bestLoc);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+
+
     }
 
     void tryMove(){
@@ -94,21 +89,27 @@ public class Soldier extends MyRobot {
         }
     }*/
 
-    MapLocation getFreeSpace(){
+    MapLocation getFreeSpace(){ // soldiers will find closest free space
         MapLocation myLoc = rc.getLocation();
+        MapLocation target = null;
         try {
             MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells) { // interlinked
                 if (!rc.canSenseLocation(cell)) continue; // needed?
                 if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length == 0) { // some spacing condition
-                    return cell;
+                    if (target == null) {
+                        target = cell;
+                    }
+                    else if (myLoc.distanceSquaredTo(cell) < myLoc.distanceSquaredTo(target)) {
+                        target = cell;
+                    }
                 }
             }
             // no spacing in vision
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return null;
+        return target;
     }
 
 }
