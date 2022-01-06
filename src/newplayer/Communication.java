@@ -1,3 +1,5 @@
+// [0] Pathing to HQ with flag: HQ_DECIDED yyyy yyxx xxxx
+
 package newplayer;
 
 import battlecode.common.RobotController;

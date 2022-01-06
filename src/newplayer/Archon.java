@@ -10,6 +10,7 @@ public class Archon extends MyRobot {
     int depositsDetected;
     boolean arrived = false;
 
+
     public Archon(RobotController rc){
         super(rc);
         myTeam = rc.getTeam();
@@ -17,23 +18,23 @@ public class Archon extends MyRobot {
     }
 
     public void play(){
-        if (minersBuilt < 1) {
+        if (minersBuilt < 1 && rc.getRoundNum() % 250 == 0) { //update periodically
             getMines();
         };
         if (rc.getMode() == RobotMode.TURRET) {
             if (!arrived) {
                 if (minersBuilt > depositsDetected) {
                     try {
-                        boolean HQ_DECIDED = (rc.readSharedArray(0) >> 12) == 1; //xxxx xxyy yyyy HQ_DECIDED
+                        boolean HQ_DECIDED = (rc.readSharedArray(0) >> 12) == 1; // HQ_DECIDED yyyy yyxx xxxx
                         if (!HQ_DECIDED) {
-                            System.err.println("wrote hq at " + rc.getLocation());
+                            //System.err.println("wrote hq at " + rc.getLocation());
                             MapLocation myLoc = rc.getLocation();
                             int code = (1 << 12) + (myLoc.y << 6) + myLoc.x;
                             rc.writeSharedArray(0, code);
                             arrived = true;
                         }
                         else {
-                            System.err.println("hq should be going portable at " + rc.getLocation());
+                            //System.err.println("hq should be going portable at " + rc.getLocation());
                             if (rc.isTransformReady()) {
                                 rc.transform();
                             }
@@ -167,17 +168,14 @@ public class Archon extends MyRobot {
                 if (!rc.canSenseLocation(cell)) continue; // needed?
                 int lead = rc.senseLead(cell);
                 if (lead > 0) {
-                    // should use comms here probably
                     depositsDetected++;
                 }
-                /*
+
                 int gold = rc.senseGold(cell);
-                if (gold > bestGold) {
-                    bestMine = cell;
-                    bestGold = gold;
-                    // if there is gold, for now we will go for the largest deposit
+                if (gold > 0) {
+                    depositsDetected++;
                 }
-                */
+
             }
         } catch (Throwable t) {
             t.printStackTrace();
