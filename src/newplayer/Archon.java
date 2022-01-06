@@ -8,6 +8,7 @@ public class Archon extends MyRobot {
 
     int minersBuilt;
     int depositsDetected;
+    int numBuildersNeed = 1;
     boolean arrived = false;
 
 
@@ -93,6 +94,27 @@ public class Archon extends MyRobot {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
                         rc.buildRobot(RobotType.MINER, dir); // we simply spam miners
                         minersBuilt++;
+                        break;
+                    }
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+        }
+        else if(rc.getTeamLeadAmount(myTeam) > RobotType.BUILDER.buildCostLead)
+        {
+            if(rc.getArchonCount() > 2)
+            {
+                numBuildersNeed = 2;
+            }
+
+            int builderCount = 0;
+            for (Direction dir : Direction.allDirections())
+            {
+                try {
+                    if (rc.canBuildRobot(RobotType.BUILDER, dir) && builderCount < numBuildersNeed){
+                        builderCount++;
+                        rc.buildRobot(RobotType.BUILDER, dir); // we spawn builders based on num needed
                         break;
                     }
                 } catch (Throwable t) {
