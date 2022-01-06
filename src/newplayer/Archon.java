@@ -1,25 +1,106 @@
 package newplayer;
 
-import battlecode.common.MapLocation;
-import battlecode.common.RobotController;
-import battlecode.common.Direction;
-import battlecode.common.RobotType;
+import battlecode.common.*;
 
 public class Archon extends MyRobot {
 
-    RobotController rc;
-    MapLocation myLoc;
+
+    final int EXPLORER_1_TYPE = 0;
+    final int EXPLORER_2_TYPE = 1;
+    final int ATTACKER_TYPE = 2;
+    final int EXPLORE_2_BYTECODE_REMAINING = 2000;
+
+    int myType;
+    boolean moved = false;
+
+    int exploreRounds;
+
+    Team myTeam, enemyTeam;
+
+    int birthday;
+
+    final static int EC_DELAY = 100;
+
     int minersBuilt;
     int depositsDetected;
 
-    Archon(RobotController rc){
-        this.rc = rc;
-        myLoc = rc.getLocation();
-        minersBuilt = 0;
-        depositsDetected = 0;
+    public Archon(RobotController rc){
+        super(rc);
+        myType = EXPLORER_1_TYPE;
+        myTeam = rc.getTeam();
+        enemyTeam = myTeam.opponent();
+        birthday = rc.getRoundNum();
     }
 
-    void checkCells() {
+    public void play(){
+        if (minersBuilt < 1) {
+            getMines();
+        }
+        moved = false;
+        tryBuild();
+        tryMove();
+    }
+
+    void tryBuild(){
+        if (minersBuilt <= depositsDetected) {
+            for (Direction dir : Direction.allDirections()) {
+                try {
+                    if (rc.canBuildRobot(RobotType.MINER, dir)) {
+                        rc.buildRobot(RobotType.MINER, dir); // we simply spam miners
+                        minersBuilt++;
+                        break;
+                    }
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+        }
+        else if (rc.getTeamLeadAmount(rc.getTeam()) > 100) { // arbitrary number
+            for (Direction dir : Direction.allDirections()) {
+                try {
+                    if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
+                        rc.buildRobot(RobotType.SOLDIER, dir); // we simply spam soldiers
+                        break;
+                    }
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+        }
+    }
+
+    void tryMove(){
+
+    }
+
+    /*boolean goToEnemyHQ(){
+        MapLocation ans = null;
+        int minDist = -1;
+        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
+            if (r.getMapLocation() == null) continue;
+            if (r.team != rc.getTeam().opponent().ordinal()) continue;
+            if (rc.getRoundNum() - r.turnExplored <= EC_DELAY) continue;
+            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
+            if (minDist < 0 || minDist > dist){
+                minDist = dist;
+                ans = r.getMapLocation();
+            }
+        }
+        return moveSafely(ans, Util.SAFETY_DISTANCE_ENEMY_EC);
+    }*/
+
+    /*void updateECs(){
+        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
+            if (r.getMapLocation() == null) continue;
+            if (r.team != rc.getTeam().opponent().ordinal()) continue;
+            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
+            if (dist > Util.MUCKRAKER_DIST_EC) continue;
+            r.turnExplored = rc.getRoundNum();
+        }
+    }*/
+
+    void getMines(){
+        MapLocation myLoc = rc.getLocation();
         try {
             MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells) { // interlinked
@@ -43,52 +124,4 @@ public class Archon extends MyRobot {
         }
     }
 
-    void play(){
-        //beginning of game: archons should probably get each others locations so the archons closest to a deposits spawns the miner
-        if (minersBuilt == 0) {
-            for (Direction dir : Direction.allDirections()) {
-                try {
-                    if (rc.canBuildRobot(RobotType.MINER, dir)) {
-                        rc.buildRobot(RobotType.MINER, dir); // each archon should spawn at least 1 miner
-                        minersBuilt++;
-                        break;
-                    }
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                }
-            }
-            checkCells();
-        }
-        while(minersBuilt <= depositsDetected) {
-            for (Direction dir : Direction.allDirections()) {
-                try {
-                    if (rc.canBuildRobot(RobotType.MINER, dir)) {
-                        rc.buildRobot(RobotType.MINER, dir); // we simply spam miners
-                        minersBuilt++;
-                        break;
-                    }
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                }
-            }
-        }
-        while(rc.getTeamLeadAmount(rc.getTeam()) > 100) { // arbitrary number
-            for (Direction dir : Direction.allDirections()) {
-                try {
-                    if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
-                        rc.buildRobot(RobotType.SOLDIER, dir); // we simply spam soldiers
-                        break;
-                    }
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                }
-            }
-        }
-        // could do some repairs here
-        // consider sac'ing miners with comms
-        // droids should report deposits back to archon and create miners
-
-    }
-
 }
-

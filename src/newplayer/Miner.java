@@ -1,41 +1,109 @@
 package newplayer;
 
-import battlecode.common.Direction;
-import battlecode.common.MapLocation;
-import battlecode.common.RobotController;
-
-import java.util.PriorityQueue;
-import java.util.Queue;
-import java.util.HashSet;
+import battlecode.common.*;
 
 public class Miner extends MyRobot {
 
-    final int EXPLORE_BIT = 0x80;
-    final int RUBBLE_BITS = 0x7F;
-    RobotController rc;
-    Pathfinding path;
-    MapLocation target;
-    MapLocation bestMine;
-    MapLocation myLoc;
-    int H;
-    int W;
-    int map[][]; // 7 bits to represent rubble value, 1 bit to represent if explored (may want other bits to represent deposits
 
-    Miner(RobotController rc){
-        this.rc = rc;
-        path = new Pathfinding(rc);
-        target = null;
-        bestMine = null;
-        myLoc = rc.getLocation();
-        H = rc.getMapHeight();
-        W = rc.getMapWidth();
-        map = new int[H][W];
+    final int EXPLORER_1_TYPE = 0;
+    final int EXPLORER_2_TYPE = 1;
+    final int ATTACKER_TYPE = 2;
+    final int EXPLORE_2_BYTECODE_REMAINING = 2000;
 
+    int myType;
+    boolean moved = false;
+
+    int exploreRounds;
+
+    Team myTeam, enemyTeam;
+
+    int birthday;
+
+    final static int EC_DELAY = 100;
+
+    public Miner(RobotController rc){
+        super(rc);
+        myType = EXPLORER_1_TYPE;
+        myTeam = rc.getTeam();
+        enemyTeam = myTeam.opponent();
+        birthday = rc.getRoundNum();
     }
 
-    // checks all cells regardless of whether they have been explored
-    void checkCells() {
-        bestMine = null;
+    public void play(){
+        moved = false;
+        tryMine();
+        tryMove();
+        //updateECs();
+    }
+
+    void tryMine(){
+        MapLocation myLoc = rc.getLocation();
+        if (rc.canMineGold(myLoc)) {
+            try {
+                rc.mineGold(myLoc);
+                moved = true; //temp fix to keep mining
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
+        else if (rc.canMineLead(myLoc)) {
+            try {
+                rc.mineLead(myLoc);
+                moved = true; //temp fix to keep mining
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+        }
+    }
+
+    void tryMove(){
+        if (moved) return;
+        MapLocation loc = getClosestMine();
+        if (loc != null){
+            bfs.move(loc);
+            return;
+        }
+        /*if (rc.getRoundNum() - birthday > exploreRounds){
+            if (goToEnemyHQ()) return;
+        }*/
+        //explore
+        int x = (int) (Math.random() * rc.getMapWidth());
+        int y = (int) (Math.random() * rc.getMapHeight());
+        loc = new MapLocation(x, y);
+        //rc.setIndicatorDot(loc, 0, 0, 255);
+        bfs.move(loc);
+        return;
+    }
+
+    /*boolean goToEnemyHQ(){
+        MapLocation ans = null;
+        int minDist = -1;
+        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
+            if (r.getMapLocation() == null) continue;
+            if (r.team != rc.getTeam().opponent().ordinal()) continue;
+            if (rc.getRoundNum() - r.turnExplored <= EC_DELAY) continue;
+            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
+            if (minDist < 0 || minDist > dist){
+                minDist = dist;
+                ans = r.getMapLocation();
+            }
+        }
+        return moveSafely(ans, Util.SAFETY_DISTANCE_ENEMY_EC);
+    }*/
+
+    /*void updateECs(){
+        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
+            if (r.getMapLocation() == null) continue;
+            if (r.team != rc.getTeam().opponent().ordinal()) continue;
+            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
+            if (dist > Util.MUCKRAKER_DIST_EC) continue;
+            r.turnExplored = rc.getRoundNum();
+        }
+    }*/
+
+    MapLocation getClosestMine(){
+        MapLocation myLoc = rc.getLocation();
+        MapLocation bestMine = null;
         int bestGold = 0;
         try {
             MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
@@ -68,49 +136,7 @@ public class Miner extends MyRobot {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-    }
-
-    void play() {
-        // probably read comms here to make sure we weren't created to mine a specific location
-        if (target == null) {
-            checkCells(); // look for a mine. right now we check all cells no matter what
-            target = bestMine;
-        }
-        else if (rc.canMineGold(target)) {
-            try {
-                rc.mineGold(target);
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-        }
-        else if (rc.canMineLead(target)) {
-            try {
-                rc.mineLead(target);
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-        }
-        else if (myLoc == target || rc.canSenseRobotAtLocation(target)) {
-            target = null;
-            checkCells(); // look for a mine. right now we check all cells no matter what
-            target = bestMine;
-        }
-
-        // if target is still null, we need to explore
-        if (target == null) {
-            // explore. we may want to terminate exploration with comms. exploration is currently random
-            int x = (int) (Math.random() * rc.getMapWidth());
-            int y = (int) (Math.random() * rc.getMapHeight());
-            MapLocation newLoc = new MapLocation(x, y);
-            //if ((map[newLoc.x][newLoc.y]&EXPLORE_BIT) > 0) continue;
-            target = newLoc;
-        }
-
-        if (target != null) {
-            path.move(target);
-            myLoc = rc.getLocation();
-        }
+        return bestMine;
     }
 
 }
-

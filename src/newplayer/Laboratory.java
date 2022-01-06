@@ -7,7 +7,7 @@ public class Laboratory extends MyRobot {
     RobotController rc;
 
     Laboratory(RobotController rc){
-        this.rc = rc;
+        super(rc);
     }
 
     void play(){

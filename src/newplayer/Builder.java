@@ -7,7 +7,7 @@ public class Builder extends MyRobot {
     RobotController rc;
 
     Builder(RobotController rc){
-        this.rc = rc;
+        super(rc);
     }
 
     void play(){

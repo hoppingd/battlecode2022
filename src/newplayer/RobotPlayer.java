@@ -30,13 +30,16 @@ public strictfp class RobotPlayer {
             case BUILDER:
                 r = new Builder(rc);
                 break;
+            case SAGE:
             default:
                 r = new Sage(rc);
                 break;
         }
 
         while (true) {
+            r.initTurn();
             r.play();
+            r.endTurn();
             Clock.yield();
         }
     }

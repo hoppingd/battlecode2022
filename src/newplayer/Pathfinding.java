@@ -11,6 +11,7 @@ public class Pathfinding {
     double avgRubble = 100;
 
     BugNav bugNav = new BugNav();
+    Exploration explore;
 
     static final Direction[] directions = {
             Direction.NORTH,
@@ -24,31 +25,51 @@ public class Pathfinding {
             Direction.CENTER
     };
 
-    Pathfinding(RobotController rc){
+    boolean[] impassable = null;
+
+    void setImpassable(boolean[] impassable){
+        this.impassable = impassable;
+    }
+
+    void initTurn(){
+        impassable = new boolean[directions.length];
+    }
+
+    boolean canMove(Direction dir){
+        if (!rc.canMove(dir)) return false;
+        if (impassable[dir.ordinal()]) return false;
+        return true;
+    }
+
+
+    Pathfinding(RobotController rc, Exploration explore){
         this.rc = rc;
+        this.explore = explore;
     }
-
-    public void move(MapLocation loc){
-        if (rc.getMovementCooldownTurns() >= 1) return;
-        target = loc;
-
-        if (!bugNav.move()) greedyPath();
-        bugNav.move();
-    }
-
-    final double eps = 1e-5;
 
     double getEstimation (MapLocation loc){
         try {
             if (loc.distanceSquaredTo(target) == 0) return 0;
             int d = Util.distance(target, loc);
-            int r = rc.senseRubble(loc);
+            double r = rc.senseRubble(loc);
             return r + (d - 1)*avgRubble;
         } catch (Throwable e){
             e.printStackTrace();
         }
         return 1e9;
     }
+
+    public void move(MapLocation loc){
+        if (rc.getMovementCooldownTurns() >= 1) return;
+        target = loc;
+
+        //rc.setIndicatorLine(rc.getLocation(), target, 255, 0, 0);
+
+        if (!bugNav.move()) greedyPath();
+        bugNav.move();
+    }
+
+    final double eps = 1e-5;
 
     void greedyPath(){
         try {
@@ -68,7 +89,7 @@ public class Pathfinding {
                 ++contRubble;
 
 
-                if (!rc.canMove(dir)) continue;
+                if (!canMove(dir)) continue;
                 if (!strictlyCloser(newLoc, myLoc, target)) continue;
 
                 int newDist = newLoc.distanceSquaredTo(target);
@@ -132,14 +153,14 @@ public class Pathfinding {
                 //If there's an obstacle I try to go around it [until I'm free] instead of going to the target directly
                 Direction dir = myLoc.directionTo(target);
                 if (lastObstacleFound != null) dir = myLoc.directionTo(lastObstacleFound);
-                if (rc.canMove(dir)){
+                if (canMove(dir)){
                     resetPathfinding();
                 }
 
                 //I rotate clockwise or counterclockwise (depends on 'rotateRight'). If I try to go out of the map I change the orientation
                 //Note that we have to try at most 16 times since we can switch orientation in the middle of the loop. (It can be done more efficiently)
                 for (int i = 8; i-- > 0;) {
-                    if (rc.canMove(dir)) {
+                    if (canMove(dir)) {
                         rc.move(dir);
                         return true;
                     }
@@ -151,7 +172,7 @@ public class Pathfinding {
                     else dir = dir.rotateLeft();
                 }
 
-                if (rc.canMove(dir)) rc.move(dir);
+                if (canMove(dir)) rc.move(dir);
             } catch (Exception e){
                 e.printStackTrace();
             }
