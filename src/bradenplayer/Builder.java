@@ -1,4 +1,4 @@
-package newplayer;
+package bradenplayer;
 
 import battlecode.common.*;
 

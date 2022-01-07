@@ -1,4 +1,4 @@
-package newplayer;
+package bradenplayer;
 
 import battlecode.common.*;
 
@@ -101,7 +101,6 @@ public class Archon extends MyRobot {
                 }
             }
         }
-        /*
         else if(rc.getTeamLeadAmount(myTeam) > RobotType.BUILDER.buildCostLead)
         {
             if(rc.getArchonCount() > 2)
@@ -126,7 +125,6 @@ public class Archon extends MyRobot {
                 }
             }
         }
-         */
         else if (rc.getTeamLeadAmount(myTeam) > RobotType.SOLDIER.buildCostLead) {
             for (Direction dir : Direction.allDirections()) {
                 try {
