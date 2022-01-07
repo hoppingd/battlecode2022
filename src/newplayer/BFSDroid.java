@@ -1859,8 +1859,6 @@ public class BFSDroid extends BFS {
                             return d113;
                         case 4:
                             return d114;
-                        //case 5:
-                        //return d115;
                     }
                     break;
                 case 3:

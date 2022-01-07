@@ -19,7 +19,7 @@ public class Archon extends MyRobot {
     }
 
     public void play(){
-        if (minersBuilt < 1 && rc.getRoundNum() % 250 == 0) { //update periodically
+        if (minersBuilt < 1 || rc.getRoundNum() % 250 == 0) { //update periodically
             getMines();
         };
         if (rc.getMode() == RobotMode.TURRET) {
