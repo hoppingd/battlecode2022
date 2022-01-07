@@ -46,15 +46,23 @@ public class Soldier extends MyRobot {
 
     void tryMove(){
         if (moved) return;
-        if (rc.senseNearbyRobots(rc.getLocation(), 1, rc.getTeam()).length == 0) { // some spacing condition
-            return;
-        }
-        MapLocation loc = getFreeSpace();
+        switch (comm.getTask()) {
+            case 0: //scout
+                
+                break;
+            case 1: // defensive lattice
+                if (rc.senseNearbyRobots(rc.getLocation(), 1, rc.getTeam()).length == 0) { // some spacing condition
+                    return;
+                }
+                MapLocation loc = getFreeSpace();
 
-        if (loc != null){
-            bfs.move(loc);
-            return;
+                if (loc != null){
+                    bfs.move(loc);
+                    return;
+                }
+            default:
         }
+
         /*if (rc.getRoundNum() - birthday > exploreRounds){
             if (goToEnemyHQ()) return;
         }*/

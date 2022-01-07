@@ -31,35 +31,13 @@ public class Builder extends MyRobot {
 
     void tryMove()
     {
-        if (moved) return;
-        MapLocation loc = null;
-        int x =0;
-        int y =0;
-        try {
-            int HQloc = rc.readSharedArray(0); //xxxx xxyy yyyy HQ_DECIDED
-            x = HQloc & 0x3F;
-            y = (HQloc >> 6) & 0x3F;
+        //rc.setIndicatorDot(loc, 0, 0, 255);
 
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        MapLocation HQ = new MapLocation(x,y);
-
-            try{
-                MapLocation[] cells = rc.getAllLocationsWithinRadiusSquared(HQ, 4);
-                for(MapLocation moveHere : cells) {
-                    bfs.move(moveHere);
-                    return;
-                }
-            }
-            catch(Throwable t) {
-                t.printStackTrace();
-
-        }
     }
 
     void tryBuild()
     {
+        /*
             if(rc.getTeamLeadAmount(myTeam) >= RobotType.WATCHTOWER.buildCostLead && watchCount < 1) {
                 //just trying building in one of these four directions I figure atleast one will work
                 try {
@@ -82,7 +60,7 @@ public class Builder extends MyRobot {
                 } catch (Throwable t) {
                     t.printStackTrace();
                 }
-            }
+            }*/
 
     }
 

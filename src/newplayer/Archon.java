@@ -6,8 +6,9 @@ public class Archon extends MyRobot {
 
     Team myTeam, enemyTeam;
 
-    int minersBuilt;
-    int depositsDetected;
+    int minersBuilt = 0;
+    int builderCount = 0;
+    int depositsDetected = 0;
     int numBuildersNeed = 1;
     boolean arrived = false;
 
@@ -26,12 +27,7 @@ public class Archon extends MyRobot {
             if (!arrived) {
                 if (minersBuilt > depositsDetected) {
                     try {
-                        boolean HQ_DECIDED = (rc.readSharedArray(0) >> 12) == 1; // HQ_DECIDED yyyy yyxx xxxx
-                        if (!HQ_DECIDED) {
-                            //System.err.println("wrote hq at " + rc.getLocation());
-                            MapLocation myLoc = rc.getLocation();
-                            int code = (1 << 12) + (myLoc.y << 6) + myLoc.x;
-                            rc.writeSharedArray(0, code);
+                        if (comm.setHQloc(rc.getLocation())) {
                             arrived = true;
                         }
                         else {
@@ -55,31 +51,21 @@ public class Archon extends MyRobot {
     }
 
     void tryMove(){
-        MapLocation HQ = null;
-        try {
-            int HQloc = rc.readSharedArray(0); //xxxx xxyy yyyy HQ_DECIDED
-            int x = HQloc & 0x3F;
-            int y = (HQloc >> 6) & 0x3F;
-            HQ = new MapLocation(x,y);
-        } catch (Throwable t) {
-            t.printStackTrace();
+        if (comm.HQloc == null) {
+            comm.readHQloc();
         }
-
-        if (HQ != null){
-            if (rc.getLocation().isWithinDistanceSquared(HQ, 10)) {
-                try {
-                    if (rc.isTransformReady()) {
-                        rc.transform();
-                        arrived = true;
-                    }
-                } catch (Throwable t) {
-                    t.printStackTrace();
+        if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, 10)) {
+            try {
+                if (rc.isTransformReady()) {
+                    rc.transform();
+                    arrived = true;
                 }
+            } catch (Throwable t) {
+                t.printStackTrace();
             }
-            else {
-                bfs.move(HQ);
-            }
-            return;
+        }
+        else {
+            bfs.move(comm.HQloc);
         }
         /*if (rc.getRoundNum() - birthday > exploreRounds){
             if (goToEnemyHQ()) return;
@@ -101,15 +87,12 @@ public class Archon extends MyRobot {
                 }
             }
         }
-        /*
-        else if(rc.getTeamLeadAmount(myTeam) > RobotType.BUILDER.buildCostLead)
+        /*else if(builderCount < numBuildersNeed && rc.getTeamLeadAmount(myTeam) > RobotType.BUILDER.buildCostLead)
         {
             if(rc.getArchonCount() > 2)
             {
-                numBuildersNeed = 2;
+                numBuildersNeed = 2; // delay 2nd builder
             }
-
-            int builderCount = 0;
             for (Direction dir : Direction.allDirections())
             {
                 try {
@@ -126,7 +109,7 @@ public class Archon extends MyRobot {
                 }
             }
         }
-         */
+        */
         else if (rc.getTeamLeadAmount(myTeam) > RobotType.SOLDIER.buildCostLead) {
             for (Direction dir : Direction.allDirections()) {
                 try {
