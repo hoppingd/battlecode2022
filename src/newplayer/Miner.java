@@ -52,9 +52,10 @@ public class Miner extends MyRobot {
             if (goToEnemyHQ()) return;
         }*/
         //explore
-        int x = (int) (Math.random() * rc.getMapWidth());
-        int y = (int) (Math.random() * rc.getMapHeight());
-        loc = new MapLocation(x, y);
+        //int x = (int) (Math.random() * rc.getMapWidth());
+        //int y = (int) (Math.random() * rc.getMapHeight());
+        //loc = new MapLocation(x, y);
+        loc = explore.getExploreTarget();
         //rc.setIndicatorDot(loc, 0, 0, 255);
         bfs.move(loc);
         return;

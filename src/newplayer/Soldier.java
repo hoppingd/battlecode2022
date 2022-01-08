@@ -4,12 +4,17 @@ import battlecode.common.*;
 
 public class Soldier extends MyRobot {
 
+    SoldierScout scout;
     boolean moved = false;
-
+    int birthday;
     Team myTeam, enemyTeam;
+
+    int task = 0;
 
     public Soldier(RobotController rc){
         super(rc);
+        scout = new SoldierScout(rc, comm);
+        birthday = rc.getRoundNum();
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
     }
@@ -18,6 +23,22 @@ public class Soldier extends MyRobot {
         moved = false;
         tryAttack();
         tryMove();
+    }
+
+    MapLocation enemyInSight(){ // soldiers will move toward enemies
+        MapLocation myLoc = rc.getLocation();
+        RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
+        MapLocation bestLoc = null;
+        int bestDist = 10000;
+        for (RobotInfo r : enemies){
+            MapLocation enemyLoc = r.getLocation();
+            int dist = myLoc.distanceSquaredTo(enemyLoc);
+            if (dist < bestDist && dist > rc.getType().actionRadiusSquared) {
+                bestDist = dist;
+                bestLoc = enemyLoc;
+            }
+        }
+        return bestLoc;
     }
 
     void tryAttack(){ // will shoot closest target
@@ -46,11 +67,37 @@ public class Soldier extends MyRobot {
 
     void tryMove(){
         if (moved) return;
-        switch (comm.getTask()) {
+        if (rc.getRoundNum() == birthday) {
+            task = comm.getTask();
+        }
+        if (rc.getRoundNum() >= 1500 && comm.readEnemyHQloc()) {
+            task = 2; // ATTACK!
+        }
+        switch (task) {
             case 0: //scout
-                
+                if (comm.readHQloc()) {
+                    MapLocation loc = scout.getProspect();
+                    bfs.move(loc);
+                    if(scout.checkProspect(loc)) {
+                        //System.err.println("should be changing tasks");
+                        task = comm.getTask(); // get new task
+                    }
+                }
+                else {
+                    MapLocation loc = getFreeSpace();
+                    if (loc != null){
+                        bfs.move(loc);
+                        return;
+                    }
+                }
                 break;
             case 1: // defensive lattice
+                task = comm.getTask(); // update task in case of emergency or mass attack
+                MapLocation nearbyEnemy = enemyInSight();
+                if (nearbyEnemy != null) {
+                    bfs.move(nearbyEnemy);
+                    return;
+                }
                 if (rc.senseNearbyRobots(rc.getLocation(), 1, rc.getTeam()).length == 0) { // some spacing condition
                     return;
                 }
@@ -60,6 +107,9 @@ public class Soldier extends MyRobot {
                     bfs.move(loc);
                     return;
                 }
+                break;
+            case 2:
+                bfs.move(comm.enemyHQloc);
             default:
         }
 
@@ -108,10 +158,13 @@ public class Soldier extends MyRobot {
                     if (target == null) {
                         target = cell;
                     }
-                    else if (myLoc.distanceSquaredTo(cell) < myLoc.distanceSquaredTo(target)) {
+                    else if (myLoc.distanceSquaredTo(cell) < myLoc.distanceSquaredTo(target)){ // should try to build lattice away from wall/toward enemy
                         target = cell;
                     }
                 }
+            }
+            if (target != null && comm.readEnemyHQloc()) {
+                if (myLoc.distanceSquaredTo(comm.enemyHQloc) < target.distanceSquaredTo(comm.enemyHQloc)) target = comm.enemyHQloc; //if free spaces are away from enemy HQ, path toward enemy HQ
             }
             // no spacing in vision
         } catch (Throwable t) {

@@ -67,7 +67,7 @@ public abstract class BFS {
                 } catch (Exception e){
                     e.printStackTrace();
                 }
-                //explore.move(dir); once explore is implemented we'll make sure e dont get stuck
+                // can we get stuck here?
                 return;
             } else activateGreedy();
         }

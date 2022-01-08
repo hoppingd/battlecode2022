@@ -12,7 +12,6 @@ public class Archon extends MyRobot {
     int numBuildersNeed = 1;
     boolean arrived = false;
 
-
     public Archon(RobotController rc){
         super(rc);
         myTeam = rc.getTeam();

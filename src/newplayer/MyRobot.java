@@ -27,7 +27,7 @@ public abstract class MyRobot {
     public MyRobot(RobotController rc){
         this.rc = rc;
         comm = new Communication(rc);
-        explore = new Exploration();
+        explore = new Exploration(rc);
         bfs = new BFSDroid(rc, explore); //if need to move units with visions other than 20, switch here
     }
 
@@ -44,7 +44,7 @@ public abstract class MyRobot {
     void endTurn(){
         //comm.run();
         explore.initialize();
-        //if (rc.getType() != RobotType.SLANDERER) explore.markSeen();
+        explore.markSeen();
     }
 
     /*boolean surroundEnemyHQ(){

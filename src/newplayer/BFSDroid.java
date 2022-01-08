@@ -1,9 +1,17 @@
 //hardcoded pathfinding for 20 vision units (droids)
+//  consider trying these to reduce bytecode
+//- Some "distance1 + weight < distance2" conditions are always true because their distance1 is always 0 and their distance2 is always 1,000,000
+//- All rc.onTheMap calls can be replaced with cheaper switch statements
+//- Math.sqrt isn't needed in the score calculations
+//- collections array as list max or mathmax?
 package newplayer;
 
 import battlecode.common.Direction;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
+
+import java.util.Arrays;
+import java.util.Collections;
 
 public class BFSDroid extends BFS {
 
@@ -360,28 +368,28 @@ public class BFSDroid extends BFS {
     Direction getBestDir(MapLocation target){
         l84 = rc.getLocation();
         v84 = 0;
-        l85 = l84.add(Direction.NORTH);
+        l85 = rc.adjacentLocation(Direction.NORTH);
         v85 = 1000000;
         d85 = null;
-        l72 = l85.add(Direction.WEST);
+        l72 = rc.adjacentLocation(Direction.NORTHWEST);
         v72 = 1000000;
         d72 = null;
-        l71 = l72.add(Direction.SOUTH);
+        l71 = rc.adjacentLocation(Direction.WEST);
         v71 = 1000000;
         d71 = null;
-        l70 = l71.add(Direction.SOUTH);
+        l70 = rc.adjacentLocation(Direction.SOUTHWEST);
         v70 = 1000000;
         d70 = null;
-        l83 = l70.add(Direction.EAST);
+        l83 = rc.adjacentLocation(Direction.SOUTH);
         v83 = 1000000;
         d83 = null;
-        l96 = l83.add(Direction.EAST);
+        l96 = rc.adjacentLocation(Direction.SOUTHEAST);
         v96 = 1000000;
         d96 = null;
-        l97 = l96.add(Direction.NORTH);
+        l97 = rc.adjacentLocation(Direction.EAST);
         v97 = 1000000;
         d97 = null;
-        l98 = l97.add(Direction.NORTH);
+        l98 = rc.adjacentLocation(Direction.NORTHEAST);
         v98 = 1000000;
         d98 = null;
         l99 = l98.add(Direction.NORTH);
@@ -568,7 +576,7 @@ public class BFSDroid extends BFS {
 
         try {
             if (rc.onTheMap(l71)) {
-                if (!rc.isLocationOccupied(l71)) {
+                if (rc.canMove(Direction.WEST)) {
                     p71 = rc.senseRubble(l71);
                     if (v71 > v84 + p71) {
                         v71 = v84 + p71;
@@ -577,7 +585,7 @@ public class BFSDroid extends BFS {
                 }
             }
             if (rc.onTheMap(l83)) {
-                if (!rc.isLocationOccupied(l83)) {
+                if (rc.canMove(Direction.SOUTH)) {
                     p83 = rc.senseRubble(l83);
                     if (v83 > v84 + p83) {
                         v83 = v84 + p83;
@@ -590,7 +598,7 @@ public class BFSDroid extends BFS {
                 }
             }
             if (rc.onTheMap(l85)) {
-                if (!rc.isLocationOccupied(l85)) {
+                if (rc.canMove(Direction.NORTH)) {
                     p85 = rc.senseRubble(l85);
                     if (v85 > v84 + p85) {
                         v85 = v84 + p85;
@@ -603,7 +611,7 @@ public class BFSDroid extends BFS {
                 }
             }
             if (rc.onTheMap(l97)) {
-                if (!rc.isLocationOccupied(l97)) {
+                if (rc.canMove(Direction.WEST)) {
                     p97 = rc.senseRubble(l97);
                     if (v97 > v84 + p97) {
                         v97 = v84 + p97;
@@ -620,7 +628,7 @@ public class BFSDroid extends BFS {
                 }
             }
             if (rc.onTheMap(l70)) {
-                if (!rc.isLocationOccupied(l70)) {
+                if (rc.canMove(Direction.SOUTHWEST)) {
                     p70 = rc.senseRubble(l70);
                     if (v70 > v84 + p70) {
                         v70 = v84 + p70;
@@ -637,7 +645,7 @@ public class BFSDroid extends BFS {
                 }
             }
             if (rc.onTheMap(l72)) {
-                if (!rc.isLocationOccupied(l72)) {
+                if (rc.canMove(Direction.NORTHWEST)) {
                     p72 = rc.senseRubble(l72);
                     if (v72 > v84 + p72) {
                         v72 = v84 + p72;
@@ -654,7 +662,7 @@ public class BFSDroid extends BFS {
                 }
             }
             if (rc.onTheMap(l96)) {
-                if (!rc.isLocationOccupied(l96)) {
+                if (rc.canMove(Direction.SOUTHEAST)) {
                     p96 = rc.senseRubble(l96);
                     if (v96 > v84 + p96) {
                         v96 = v84 + p96;
@@ -671,7 +679,7 @@ public class BFSDroid extends BFS {
                 }
             }
             if (rc.onTheMap(l98)) {
-                if (!rc.isLocationOccupied(l98)) {
+                if (rc.canMove(Direction.NORTHEAST)) {
                     p98 = rc.senseRubble(l98);
                     if (v98 > v84 + p98) {
                         v98 = v84 + p98;
@@ -1896,171 +1904,167 @@ public class BFSDroid extends BFS {
             }
 
             Direction ans = null;
-            double bestEstimation = 0;
             double initialDist = Math.sqrt(l84.distanceSquaredTo(target));
 
             double dist30 = (initialDist - Math.sqrt(l30.distanceSquaredTo(target))) / v30;
-            if (dist30 > bestEstimation) {
-                bestEstimation = dist30;
-                ans = d30;
-            }
             double dist31 = (initialDist - Math.sqrt(l31.distanceSquaredTo(target))) / v31;
-            if (dist31 > bestEstimation) {
-                bestEstimation = dist31;
-                ans = d31;
-            }
             double dist32 = (initialDist - Math.sqrt(l32.distanceSquaredTo(target))) / v32;
-            if (dist32 > bestEstimation) {
-                bestEstimation = dist32;
-                ans = d32;
-            }
             double dist33 = (initialDist - Math.sqrt(l33.distanceSquaredTo(target))) / v33;
-            if (dist33 > bestEstimation) {
-                bestEstimation = dist33;
-                ans = d33;
-            }
             double dist34 = (initialDist - Math.sqrt(l34.distanceSquaredTo(target))) / v34;
-            if (dist34 > bestEstimation) {
-                bestEstimation = dist34;
-                ans = d34;
-            }
             double dist42 = (initialDist - Math.sqrt(l42.distanceSquaredTo(target))) / v42;
-            if (dist42 > bestEstimation) {
-                bestEstimation = dist42;
-                ans = d42;
+            double dist43 = (initialDist - Math.sqrt(l43.distanceSquaredTo(target))) / v43;
+            double dist47 = (initialDist - Math.sqrt(l47.distanceSquaredTo(target))) / v47;
+            double dist48 = (initialDist - Math.sqrt(l48.distanceSquaredTo(target))) / v48;
+            double dist54 = (initialDist - Math.sqrt(l54.distanceSquaredTo(target))) / v54;
+            double dist55 = (initialDist - Math.sqrt(l55.distanceSquaredTo(target))) / v55;
+            double dist61 = (initialDist - Math.sqrt(l61.distanceSquaredTo(target))) / v61;
+            double dist62 = (initialDist - Math.sqrt(l62.distanceSquaredTo(target))) / v62;
+            double dist67 = (initialDist - Math.sqrt(l67.distanceSquaredTo(target))) / v67;
+            double dist75 = (initialDist - Math.sqrt(l75.distanceSquaredTo(target))) / v75;
+            double dist80 = (initialDist - Math.sqrt(l80.distanceSquaredTo(target))) / v80;
+            double dist88 = (initialDist - Math.sqrt(l88.distanceSquaredTo(target))) / v88;
+            double dist93 = (initialDist - Math.sqrt(l93.distanceSquaredTo(target))) / v93;
+            double dist101 = (initialDist - Math.sqrt(l101.distanceSquaredTo(target))) / v101;
+            double dist106 = (initialDist - Math.sqrt(l106.distanceSquaredTo(target))) / v106;
+            double dist107 = (initialDist - Math.sqrt(l107.distanceSquaredTo(target))) / v107;
+            double dist113 = (initialDist - Math.sqrt(l113.distanceSquaredTo(target))) / v113;
+            double dist114 = (initialDist - Math.sqrt(l114.distanceSquaredTo(target))) / v114;
+            double dist120 = (initialDist - Math.sqrt(l120.distanceSquaredTo(target))) / v120;
+            double dist121 = (initialDist - Math.sqrt(l121.distanceSquaredTo(target))) / v121;
+            double dist125 = (initialDist - Math.sqrt(l125.distanceSquaredTo(target))) / v125;
+            double dist126 = (initialDist - Math.sqrt(l126.distanceSquaredTo(target))) / v126;
+            double dist134 = (initialDist - Math.sqrt(l134.distanceSquaredTo(target))) / v134;
+            double dist135 = (initialDist - Math.sqrt(l135.distanceSquaredTo(target))) / v135;
+            double dist136 = (initialDist - Math.sqrt(l136.distanceSquaredTo(target))) / v136;
+            double dist137 = (initialDist - Math.sqrt(l137.distanceSquaredTo(target))) / v137;
+            double dist138 = (initialDist - Math.sqrt(l138.distanceSquaredTo(target))) / v138;
+
+            double bestEstimation = Collections.max(Arrays.asList(dist30, dist31, dist32, dist33, dist34, dist42, dist43, dist47, dist48, dist54, dist55, dist61, dist62, dist75, dist80, dist88, dist93, dist101, dist106, dist107, dist113, dist114, dist120, dist121, dist125, dist126, dist134, dist135, dist136, dist137, dist138));
+            if (bestEstimation == dist30) {
+                return d30;
             }
 
-            double dist43 = (initialDist - Math.sqrt(l43.distanceSquaredTo(target))) / v43;
-            if (dist43 > bestEstimation) {
-                bestEstimation = dist43;
-                ans = d43;
+            if (bestEstimation == dist31) {
+                return d31;
             }
-            double dist47 = (initialDist - Math.sqrt(l47.distanceSquaredTo(target))) / v47;
-            if (dist47 > bestEstimation) {
-                bestEstimation = dist47;
-                ans = d47;
+
+            if (bestEstimation == dist32) {
+                return d32;
             }
-            double dist48 = (initialDist - Math.sqrt(l48.distanceSquaredTo(target))) / v48;
-            if (dist48 > bestEstimation) {
-                bestEstimation = dist48;
-                ans = d48;
+
+            if (bestEstimation == dist33) {
+                return d33;
             }
-            double dist54 = (initialDist - Math.sqrt(l54.distanceSquaredTo(target))) / v54;
-            if (dist54 > bestEstimation) {
-                bestEstimation = dist54;
-                ans = d54;
+
+            if (bestEstimation == dist34) {
+                return d34;
             }
-            double dist55 = (initialDist - Math.sqrt(l55.distanceSquaredTo(target))) / v55;
-            if (dist55 > bestEstimation) {
-                bestEstimation = dist55;
-                ans = d55;
+
+            if (bestEstimation == dist42) {
+                return d42;
             }
-            double dist61 = (initialDist - Math.sqrt(l61.distanceSquaredTo(target))) / v61;
-            if (dist61 > bestEstimation) {
-                bestEstimation = dist61;
-                ans = d61;
+
+            if (bestEstimation == dist43) {
+                return d43;
             }
-            double dist62 = (initialDist - Math.sqrt(l62.distanceSquaredTo(target))) / v62;
-            if (dist62 > bestEstimation) {
-                bestEstimation = dist62;
-                ans = d62;
+
+            if (bestEstimation == dist47) {
+                return d47;
             }
-            double dist67 = (initialDist - Math.sqrt(l67.distanceSquaredTo(target))) / v67;
-            if (dist67 > bestEstimation) {
-                bestEstimation = dist67;
-                ans = d67;
+
+            if (bestEstimation == dist48) {
+                return d48;
             }
-            double dist75 = (initialDist - Math.sqrt(l75.distanceSquaredTo(target))) / v75;
-            if (dist75 > bestEstimation) {
-                bestEstimation = dist75;
-                ans = d75;
+
+            if (bestEstimation == dist54) {
+                return d54;
             }
-            double dist80 = (initialDist - Math.sqrt(l80.distanceSquaredTo(target))) / v80;
-            if (dist80 > bestEstimation) {
-                bestEstimation = dist80;
-                ans = d80;
+
+            if (bestEstimation == dist55) {
+                return d55;
             }
-            double dist88 = (initialDist - Math.sqrt(l88.distanceSquaredTo(target))) / v88;
-            if (dist88 > bestEstimation) {
-                bestEstimation = dist88;
-                ans = d88;
+
+            if (bestEstimation == dist61) {
+                return d61;
             }
-            double dist93 = (initialDist - Math.sqrt(l93.distanceSquaredTo(target))) / v93;
-            if (dist93 > bestEstimation) {
-                bestEstimation = dist93;
-                ans = d93;
+
+            if (bestEstimation == dist62) {
+                return d62;
             }
-            double dist101 = (initialDist - Math.sqrt(l101.distanceSquaredTo(target))) / v101;
-            if (dist101 > bestEstimation) {
-                bestEstimation = dist101;
-                ans = d101;
+
+            if (bestEstimation == dist67) {
+                return d67;
             }
-            double dist106 = (initialDist - Math.sqrt(l106.distanceSquaredTo(target))) / v106;
-            if (dist106 > bestEstimation) {
-                bestEstimation = dist106;
-                ans = d106;
+
+            if (bestEstimation == dist75) {
+                return d75;
             }
-            double dist107 = (initialDist - Math.sqrt(l107.distanceSquaredTo(target))) / v107;
-            if (dist107 > bestEstimation) {
-                bestEstimation = dist107;
-                ans = d107;
+
+            if (bestEstimation == dist80) {
+                return d80;
             }
-            double dist113 = (initialDist - Math.sqrt(l113.distanceSquaredTo(target))) / v113;
-            if (dist113 > bestEstimation) {
-                bestEstimation = dist113;
-                ans = d113;
+
+            if (bestEstimation == dist88) {
+                return d88;
             }
-            double dist114 = (initialDist - Math.sqrt(l114.distanceSquaredTo(target))) / v114;
-            if (dist114 > bestEstimation) {
-                bestEstimation = dist114;
-                ans = d114;
+
+            if (bestEstimation == dist93) {
+                return d93;
             }
-            double dist120 = (initialDist - Math.sqrt(l120.distanceSquaredTo(target))) / v120;
-            if (dist120 > bestEstimation) {
-                bestEstimation = dist120;
-                ans = d120;
+
+            if (bestEstimation == dist101) {
+                return d101;
             }
-            double dist121 = (initialDist - Math.sqrt(l121.distanceSquaredTo(target))) / v121;
-            if (dist121 > bestEstimation) {
-                bestEstimation = dist121;
-                ans = d121;
+
+            if (bestEstimation == dist106) {
+                return d106;
             }
-            double dist125 = (initialDist - Math.sqrt(l125.distanceSquaredTo(target))) / v125;
-            if (dist125 > bestEstimation) {
-                bestEstimation = dist125;
-                ans = d125;
+
+            if (bestEstimation == dist107) {
+                return d107;
             }
-            double dist126 = (initialDist - Math.sqrt(l126.distanceSquaredTo(target))) / v126;
-            if (dist126 > bestEstimation) {
-                bestEstimation = dist126;
-                ans = d126;
+
+            if (bestEstimation == dist113) {
+                return d113;
             }
-            double dist134 = (initialDist - Math.sqrt(l134.distanceSquaredTo(target))) / v134;
-            if (dist134 > bestEstimation) {
-                bestEstimation = dist134;
-                ans = d134;
+
+            if (bestEstimation == dist114) {
+                return d114;
             }
-            double dist135 = (initialDist - Math.sqrt(l135.distanceSquaredTo(target))) / v135;
-            if (dist135 > bestEstimation) {
-                bestEstimation = dist135;
-                ans = d135;
+
+            if (bestEstimation == dist120) {
+                return d120;
             }
-            double dist136 = (initialDist - Math.sqrt(l136.distanceSquaredTo(target))) / v136;
-            if (dist136 > bestEstimation) {
-                bestEstimation = dist136;
-                ans = d136;
+
+            if (bestEstimation == dist121) {
+                return d121;
             }
-            double dist137 = (initialDist - Math.sqrt(l137.distanceSquaredTo(target))) / v137;
-            if (dist137 > bestEstimation) {
-                bestEstimation = dist137;
-                ans = d137;
+
+            if (bestEstimation == dist125) {
+                return d125;
             }
-            double dist138 = (initialDist - Math.sqrt(l138.distanceSquaredTo(target))) / v138;
-            if (dist138 > bestEstimation) {
-                //bestEstimation = dist138;
-                ans = d138;
+
+            if (bestEstimation == dist126) {
+                return d126;
             }
-            return ans;
+
+            if (bestEstimation == dist134) {
+                return d134;
+            }
+
+            if (bestEstimation == dist135) {
+                return d135;
+            }
+
+            if (bestEstimation == dist136) {
+                return d136;
+            }
+
+            if (bestEstimation == dist137) {
+                return d137;
+            }
+
+            return d138;
         } catch (Exception e){
             e.printStackTrace();
         }
