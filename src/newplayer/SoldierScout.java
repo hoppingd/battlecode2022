@@ -21,7 +21,7 @@ public class SoldierScout {
     }
 
     MapLocation getProspect() {
-        if (comm.HQloc == null) { // we start scouting a bit late since the HQ only writes its location after building miners
+        if (!comm.readAllyArchonLocations()) {
             return null;
         }
         if (!checkedVertical) {
@@ -63,11 +63,11 @@ public class SoldierScout {
                 RobotInfo r = rc.senseRobotAtLocation(prospect);
                 if (r.getType() == RobotType.ARCHON) {
                     if (r.getTeam() == enemyTeam) {
-                        comm.setEnemyHQloc(prospect);
+                        comm.writeEnemyArchonLocation(prospect);
                         // if both symmetries are false at this point, must be rotational symmetry
                     }
                     else {
-                        comm.setSymmetry(checkedHorizontal);
+                        // update symmetry
                     }
                 }
             } catch (Throwable t) {

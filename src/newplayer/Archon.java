@@ -7,26 +7,31 @@ public class Archon extends MyRobot {
     Team myTeam, enemyTeam;
 
     int minersBuilt = 0;
+    int soldiersBuilt = 0;
     int builderCount = 0;
     int depositsDetected = 0;
     int numBuildersNeed = 1;
+    int birthday;
     boolean arrived = false;
 
     public Archon(RobotController rc){
         super(rc);
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
+        birthday = rc.getRoundNum();
     }
 
     public void play(){
-        if (minersBuilt < 1 || rc.getRoundNum() % 250 == 0) { //update periodically
-            getMines();
+        if (rc.getRoundNum() == birthday) { //update periodically
+            comm.writeAllyArchonLocation();
+            //getMines();
         };
         if (rc.getMode() == RobotMode.TURRET) {
             if (!arrived) {
                 if (minersBuilt > depositsDetected) {
                     try {
                         if (comm.setHQloc(rc.getLocation())) {
+                            comm.setTask(1); //stop building scouts;
                             arrived = true;
                         }
                         else {
@@ -73,7 +78,7 @@ public class Archon extends MyRobot {
     }
 
     void tryBuild(){
-        if (minersBuilt <= depositsDetected) {
+        if (minersBuilt < soldiersBuilt + 5 && soldiersBuilt > 0) {
             for (Direction dir : Direction.allDirections()) {
                 try {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
@@ -114,6 +119,7 @@ public class Archon extends MyRobot {
                 try {
                     if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
                         rc.buildRobot(RobotType.SOLDIER, dir); // we simply spam soldiers
+                        soldiersBuilt++;
                         break;
                     }
                 } catch (Throwable t) {

@@ -70,8 +70,8 @@ public class Soldier extends MyRobot {
         if (rc.getRoundNum() == birthday) {
             task = comm.getTask();
         }
-        if (rc.getRoundNum() >= 1500 && comm.readEnemyHQloc()) {
-            task = 2; // ATTACK!
+        if (rc.getRoundNum() >= 1500) {
+            //task = 2; // ATTACK!
         }
         switch (task) {
             case 0: //scout
@@ -162,9 +162,6 @@ public class Soldier extends MyRobot {
                         target = cell;
                     }
                 }
-            }
-            if (target != null && comm.readEnemyHQloc()) {
-                if (myLoc.distanceSquaredTo(comm.enemyHQloc) < target.distanceSquaredTo(comm.enemyHQloc)) target = comm.enemyHQloc; //if free spaces are away from enemy HQ, path toward enemy HQ
             }
             // no spacing in vision
         } catch (Throwable t) {

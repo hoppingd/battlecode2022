@@ -1,7 +1,14 @@
 // [0] Pathing to HQ with flag: HQ_DECIDED yyyy yyxx xxxx
 // [1] Type flags: IS_SCOUT
-// [2] Enemy HQ location and symmetry: MIR HOR VERT HQ_FOUND yyyy yyxx xxxx
-
+// [2] Symmetry: MIR HOR VERT INITIAL_SYMMETRY
+// [3] Archon 1: ARCHON_SET yyyy yyxx xxxx
+// [4] Archon 2: ARCHON_SET yyyy yyxx xxxx
+// [5] Archon 3: ARCHON_SET yyyy yyxx xxxx
+// [6] Archon 4: ARCHON_SET yyyy yyxx xxxx
+// [7] EnemyArchon 1: ARCHON_SET yyyy yyxx xxxx
+// [8] EnemyArchon 2: ARCHON_SET yyyy yyxx xxxx
+// [9] EnemyArchon 3: ARCHON_SET yyyy yyxx xxxx
+// [10] EnemyArchon 4: ARCHON_SET yyyy yyxx xxxx
 package newplayer;
 
 import battlecode.common.MapLocation;
@@ -9,16 +16,133 @@ import battlecode.common.RobotController;
 
 public class Communication {
 
+    final static int ALLY_ARCHON_ARRAY_START = 3;
+    final static int ENEMY_ARCHON_ARRAY_START = 7;
     RobotController rc;
     MapLocation HQloc = null;
     MapLocation enemyHQloc = null; // for now, we only keep track of the enemy archon that matches our HQ
+    int numArchons;
+    int H, W;
+    MapLocation[] allyArchons;
+    MapLocation[] enemyArchons;
 
     Communication(RobotController rc) {
         this.rc = rc;
+        numArchons = rc.getArchonCount();
+        H = rc.getMapHeight();
+        W = rc.getMapWidth();
+        allyArchons = new MapLocation[numArchons];
+        enemyArchons = new MapLocation[numArchons];
+
     }
 
     void init() {
 
+    }
+
+    // writes to first available archon location
+    void writeAllyArchonLocation() {
+        try {
+            for (int i = ALLY_ARCHON_ARRAY_START; i < ALLY_ARCHON_ARRAY_START + numArchons; i++) {
+                boolean ARCHON_SET = (rc.readSharedArray(i) >> 12) == 1; // ARCHON_SET yyyy yyxx xxxx
+                if (!ARCHON_SET) {
+                    int code = (1 << 12) + (rc.getLocation().y << 6) + rc.getLocation().x;
+                    rc.writeSharedArray(i, code);
+                    System.err.println("wrote ally archon at index " + i + " location " + rc.getLocation());
+                    return;
+                }
+            }
+
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        initialSymmetry();
+        return;
+    }
+
+    // reads ally archon locations. returns true if all have been read.
+    boolean readAllyArchonLocations() {
+        if (allyArchons[numArchons - 1] != null) return true;
+        try {
+            for (int i = ALLY_ARCHON_ARRAY_START; i < ALLY_ARCHON_ARRAY_START + numArchons; i++) {
+                int code = rc.readSharedArray(i);
+                boolean ARCHON_SET = (rc.readSharedArray(i) >> 12) == 1; // ARCHON_SET yyyy yyxx xxxx
+                if (ARCHON_SET) {
+                    int x = code & 0x3F;
+                    int y = (code >> 6) & 0x3F;
+                    allyArchons[i - ALLY_ARCHON_ARRAY_START] = new MapLocation(x,y);
+                    System.err.println("read ally archon at index " + i + " location " + allyArchons[i - ALLY_ARCHON_ARRAY_START]);
+
+                }
+                else {
+                    return false;
+                }
+            }
+
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        initialSymmetry();
+        return true;
+    }
+
+    //write enemy archon location. should check for ids and update if changed location
+    void writeEnemyArchonLocation(MapLocation loc) {
+        try {
+            for (int i = ENEMY_ARCHON_ARRAY_START; i < ENEMY_ARCHON_ARRAY_START + numArchons; i++) {
+                boolean ARCHON_SET = (rc.readSharedArray(i) >> 12) == 1; // ARCHON_SET yyyy yyxx xxxx
+                if (!ARCHON_SET) {
+                    int code = (1 << 12) + (loc.y << 6) + loc.x;
+                    System.err.println("wrote enemy archon at index " + i + " location " + loc);
+                    rc.writeSharedArray(i, code);
+                    return;
+                }
+            }
+
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return;
+    }
+
+    //reads enemy archon locations
+    void readEnemyArchonLocations() {
+        try {
+            for (int i = ENEMY_ARCHON_ARRAY_START; i < ENEMY_ARCHON_ARRAY_START + numArchons; i++) {
+                int code = rc.readSharedArray(i);
+                boolean ARCHON_SET = (rc.readSharedArray(i) >> 12) == 1; // ARCHON_SET yyyy yyxx xxxx
+                if (ARCHON_SET) {
+                    int x = code & 0x3F;
+                    int y = (code >> 6) & 0x3F;
+                    enemyArchons[i - ENEMY_ARCHON_ARRAY_START] = new MapLocation(x,y);
+                }
+                else {
+                    return;
+                }
+            }
+
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return;
+    }
+
+    void initialSymmetry() {
+        try {
+            int code = rc.readSharedArray(2);
+            boolean INITIAL_SYMMETRY = (code & 1) == 1; // [2] Symmetry: MIR HOR VERT INITIAL_SYMMETRY
+            if (INITIAL_SYMMETRY) return;
+            int VERT_SYMMETRY = 0;
+            int HORIZ_SYMMETRY = 0;
+            int MIRROR_SYMMETRY = 0;
+            //System.err.println("wrote hq at " + rc.getLocation());
+            //TODO: calculate symmetry
+            code = (MIRROR_SYMMETRY << 3) + (HORIZ_SYMMETRY << 2) + (VERT_SYMMETRY << 1) + 1;
+            rc.writeSharedArray(2, code);
+
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 
     void readMessages() {
@@ -55,61 +179,23 @@ public class Communication {
         return true;
     }
 
-    void setEnemyHQloc(MapLocation loc) { //MIR HOR VERT HQ_FOUND yyyy yyxx xxxx
-        try {
-            int oldCode = rc.readSharedArray(2);
-            System.err.println("wrote enemy hq at " + loc);
-            int code = ((1 << 12) + (loc.y << 6) + loc.x) | oldCode; // or with old code in case symmetry was detected prior
-            rc.writeSharedArray(2, code);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-
-    boolean readEnemyHQloc() {
-        try {
-            if (enemyHQloc != null) return true;
-            int code = rc.readSharedArray(2); //MIR HOR VERT HQ_FOUND yyyy yyxx xxxx
-            boolean HQ_FOUND = (rc.readSharedArray(2) >> 12) == 1; //MIR HOR VERT HQ_FOUND yyyy yyxx xxxx
-            if (!HQ_FOUND) return false;
-            int x = code & 0x3F;
-            int y = (code >> 6) & 0x3F;
-            enemyHQloc = new MapLocation(x,y);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return true;
-
-    }
-    void setSymmetry(boolean isHorizontal) { //MIR HOR VERT HQ_FOUND yyyy yyxx xxxx
-        try {
-            int oldCode = rc.readSharedArray(2);
-            System.err.println("set symmetry. isHorizontal: " + isHorizontal);
-            int code = 0;
-            if (isHorizontal) {
-                code = 1 << 14;
-            }
-            else {
-                code = 1 << 13;
-            }
-            code |= oldCode;
-            rc.writeSharedArray(2, code);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
     // gets type, 0 == scout, 1 == normal. the scout will update the array. if we need to, we can condense info instead
     // of using a new array index for each
     int getTask() {
         int task = 0;
         try {
             task = rc.readSharedArray(1);
-            if (task == 0) {
-                rc.writeSharedArray(1, 1);
-            }
         } catch (Throwable t) {
             t.printStackTrace();
         }
         return task;
+    }
+
+    void setTask(int n) {
+        try {
+            rc.writeSharedArray(1, n);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 }
