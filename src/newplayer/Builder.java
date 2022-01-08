@@ -4,11 +4,10 @@ import battlecode.common.*;
 
 public class Builder extends MyRobot {
 
-    //easiest way is each miner simply builds a set number of watchtowers... right now ill just do one
+
+    boolean moved = false;
     int watchCount = 0;
     Team myTeam, enemyTeam;
-    RobotController rc;
-    boolean moved = false;
 
     public Builder(RobotController rc){
         super(rc);
@@ -16,54 +15,58 @@ public class Builder extends MyRobot {
         enemyTeam = myTeam.opponent();
     }
 
-
-
-    void play()
-    {
-        //just need to build a watchtower lol I guess for now we will just set it north
-        //eventually we should do most towards the center of the map
-        //how to scout for that tho idk
+    public void play(){
         moved = false;
-        tryBuild();
+        if(!tryRepairPrototype()) { //for finishing tower
+            tryBuild();
+        }
         tryMove();
-        //TODO tryRepair(); soon!
+        //TODO: tryRepairBuilding() for healing
     }
 
-    void tryMove()
-    {
-        //rc.setIndicatorDot(loc, 0, 0, 255);
-
+    boolean tryRepairPrototype() {
+        MapLocation myLoc = rc.getLocation();
+        RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
+        MapLocation bestRepair = null;
+        int bestHealth = 0;
+        for (RobotInfo r : enemies){
+            MapLocation allyLoc = r.getLocation();
+            if (r.getMode() == RobotMode.PROTOTYPE && rc.canRepair(allyLoc)){
+                int health = r.getHealth();
+                if (health < r.getType().health && health > bestHealth) {
+                    bestHealth = health;
+                    bestRepair = allyLoc;
+                }
+            }
+        }
+        try {
+            if (bestRepair != null) rc.repair(bestRepair);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return false;
     }
 
-    void tryBuild()
-    {
-        /*
-            if(rc.getTeamLeadAmount(myTeam) >= RobotType.WATCHTOWER.buildCostLead && watchCount < 1) {
-                //just trying building in one of these four directions I figure atleast one will work
+    void tryBuild(){
+        if(watchCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.WATCHTOWER.buildCostLead)
+        {
+            for (Direction dir : Direction.allDirections())
+            {
                 try {
-                    if (rc.canBuildRobot(RobotType.WATCHTOWER, Direction.NORTH) && watchCount < 1) {
+                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir)){
                         watchCount++;
-                        rc.buildRobot(RobotType.WATCHTOWER, Direction.NORTH);
-                    } else if (rc.canBuildRobot(RobotType.WATCHTOWER, Direction.SOUTH) && watchCount < 1) {
-                        watchCount++;
-                        rc.buildRobot(RobotType.WATCHTOWER, Direction.SOUTH);
-                    } else if (rc.canBuildRobot(RobotType.WATCHTOWER, Direction.EAST) && watchCount < 1) {
-                        watchCount++;
-                        rc.buildRobot(RobotType.WATCHTOWER, Direction.EAST);
-                    } else {
-                        if (rc.canBuildRobot(RobotType.WATCHTOWER, Direction.WEST) && watchCount < 1) {
-                            watchCount++;
-                            rc.buildRobot(RobotType.WATCHTOWER, Direction.WEST);
-                        }
+                        rc.buildRobot(RobotType.WATCHTOWER, dir); // we spawn builders based on num needed
+                        break;
                     }
-                    watchCount++;
                 } catch (Throwable t) {
                     t.printStackTrace();
                 }
-            }*/
+            }
+        }
+    }
+
+    void tryMove(){
 
     }
 
-
 }
-

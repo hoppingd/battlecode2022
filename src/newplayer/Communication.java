@@ -86,7 +86,7 @@ public class Communication {
         return true;
     }
 
-    //write enemy archon location. should check for ids and update if changed location
+    //write enemy archon location. should check for ids and update if changed location. can also update if one is destroyed;
     void writeEnemyArchonLocation(MapLocation loc) {
         try {
             for (int i = ENEMY_ARCHON_ARRAY_START; i < ENEMY_ARCHON_ARRAY_START + numArchons; i++) {

@@ -10,7 +10,6 @@ public class Archon extends MyRobot {
     int soldiersBuilt = 0;
     int builderCount = 0;
     int depositsDetected = 0;
-    int numBuildersNeed = 1;
     int birthday;
     boolean arrived = false;
 
@@ -24,7 +23,7 @@ public class Archon extends MyRobot {
     public void play(){
         if (rc.getRoundNum() == birthday) { //update periodically
             comm.writeAllyArchonLocation();
-            //getMines();
+            getMines();
         };
         if (rc.getMode() == RobotMode.TURRET) {
             if (!arrived) {
@@ -78,7 +77,7 @@ public class Archon extends MyRobot {
     }
 
     void tryBuild(){
-        if (minersBuilt < soldiersBuilt + 5 && soldiersBuilt > 0) {
+        if (minersBuilt < soldiersBuilt / 2 + 5 && soldiersBuilt > 0) {
             for (Direction dir : Direction.allDirections()) {
                 try {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
@@ -91,29 +90,21 @@ public class Archon extends MyRobot {
                 }
             }
         }
-        /*else if(builderCount < numBuildersNeed && rc.getTeamLeadAmount(myTeam) > RobotType.BUILDER.buildCostLead)
+        else if(arrived && builderCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.BUILDER.buildCostLead)
         {
-            if(rc.getArchonCount() > 2)
-            {
-                numBuildersNeed = 2; // delay 2nd builder
-            }
             for (Direction dir : Direction.allDirections())
             {
                 try {
                     if (rc.canBuildRobot(RobotType.BUILDER, dir)){
-                        if(builderCount < numBuildersNeed)
-                        {
-                            builderCount++;
-                            rc.buildRobot(RobotType.BUILDER, dir); // we spawn builders based on num needed
-                            break;
-                        }
+                        builderCount++;
+                        rc.buildRobot(RobotType.BUILDER, dir); // we spawn builders based on num needed
+                        break;
                     }
                 } catch (Throwable t) {
                     t.printStackTrace();
                 }
             }
         }
-        */
         else if (rc.getTeamLeadAmount(myTeam) > RobotType.SOLDIER.buildCostLead) {
             for (Direction dir : Direction.allDirections()) {
                 try {

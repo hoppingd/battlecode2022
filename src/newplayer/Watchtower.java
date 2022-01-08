@@ -7,7 +7,6 @@ import battlecode.common.Team;
 
 public class Watchtower extends MyRobot {
 
-    RobotController rc;
     Team myTeam, enemyTeam;
 
     Watchtower(RobotController rc) {
@@ -27,7 +26,7 @@ public class Watchtower extends MyRobot {
         int bestDist = 10000;
         for (RobotInfo r : enemies) {
             MapLocation enemyLoc = r.getLocation();
-            if (rc.canAttack(r.getLocation())) {
+            if (rc.canAttack(enemyLoc)) {
                 int dist = myLoc.distanceSquaredTo(enemyLoc);
                 if (dist < bestDist) {
                     bestDist = dist;

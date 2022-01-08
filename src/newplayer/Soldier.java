@@ -48,7 +48,7 @@ public class Soldier extends MyRobot {
         int bestDist = 10000;
         for (RobotInfo r : enemies){
             MapLocation enemyLoc = r.getLocation();
-            if (rc.canAttack(r.getLocation())){
+            if (rc.canAttack(enemyLoc)){
                 int dist = myLoc.distanceSquaredTo(enemyLoc);
                 if (dist < bestDist) {
                     bestDist = dist;
