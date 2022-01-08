@@ -4,7 +4,7 @@ import battlecode.common.*;
 
 public class Miner extends MyRobot {
 
-
+    static final int MIN_LEAD_TO_MINE = 10;
     boolean moved = false;
 
     Team myTeam, enemyTeam;
@@ -99,7 +99,7 @@ public class Miner extends MyRobot {
             for (MapLocation cell : cells) { // interlinked
                 if (!rc.canSenseLocation(cell)) continue; // needed?
                 int lead = rc.senseLead(cell);
-                if (lead > 0) {
+                if (lead > MIN_LEAD_TO_MINE) {
                     if (!rc.canSenseRobotAtLocation(cell)) {
                         bestMine = cell;
                         bestAmount = lead;
