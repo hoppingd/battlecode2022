@@ -21,15 +21,15 @@ public class Builder extends MyRobot {
             tryBuild();
         }
         tryMove();
-        //TODO: tryRepairBuilding() for healing
+        tryRepairBuilding(); //for healing
     }
 
     boolean tryRepairPrototype() {
         MapLocation myLoc = rc.getLocation();
-        RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
+        RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
         MapLocation bestRepair = null;
         int bestHealth = 0;
-        for (RobotInfo r : enemies){
+        for (RobotInfo r : allies){
             MapLocation allyLoc = r.getLocation();
             if (r.getMode() == RobotMode.PROTOTYPE && rc.canRepair(allyLoc)){
                 int health = r.getHealth();
@@ -66,7 +66,45 @@ public class Builder extends MyRobot {
     }
 
     void tryMove(){
+        MapLocation target = getHurtRobot();
+        if (target != null) bfs.move(target);
+    }
 
+    void tryRepairBuilding() {
+        MapLocation myLoc = rc.getLocation();
+        RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
+        MapLocation bestRepair = null;
+        int bestHealth = 0;
+        for (RobotInfo r : allies){
+            MapLocation allyLoc = r.getLocation();
+            if (rc.canRepair(allyLoc)){
+                int health = r.getHealth();
+                if (health < r.getType().health && health > bestHealth) {
+                    bestHealth = health;
+                    bestRepair = allyLoc;
+                }
+            }
+        }
+        try {
+            if (bestRepair != null) rc.repair(bestRepair);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+    MapLocation getHurtRobot() {
+        MapLocation myLoc = rc.getLocation();
+        RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
+        MapLocation bestRepair = null;
+        int bestHealth = 10000;
+        for (RobotInfo r : allies){
+            MapLocation allyLoc = r.getLocation();
+            int health = r.getHealth();
+            if (r.getHealth() < r.getType().health && health < bestHealth) {
+                bestHealth = health;
+                bestRepair = allyLoc;
+            }
+        }
+        return bestRepair;
     }
 
 }

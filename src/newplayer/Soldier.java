@@ -73,28 +73,25 @@ public class Soldier extends MyRobot {
         if (rc.getRoundNum() == birthday) {
             task = comm.getTask();
         }
-        if (rc.getRoundNum() >= 1500) {
-            //task = 2; // ATTACK!
-        }
         switch (task) {
-            case 0: //scout
+            case 0: {//scout
                 if (comm.readHQloc()) {
                     MapLocation loc = scout.getProspect();
                     bfs.move(loc);
-                    if(scout.checkProspect(loc)) {
+                    if (scout.checkProspect(loc)) {
                         //System.err.println("should be changing tasks");
                         task = comm.getTask(); // get new task
                     }
-                }
-                else {
+                } else {
                     MapLocation loc = getFreeSpace();
-                    if (loc != null){
+                    if (loc != null) {
                         bfs.move(loc);
                         return;
                     }
                 }
                 break;
-            case 1: // defensive lattice
+            }
+            case 1: {// defensive lattice
                 task = comm.getTask(); // update task in case of emergency or mass attack
                 MapLocation nearbyEnemy = enemyInSight();
                 if (nearbyEnemy != null) {
@@ -106,13 +103,24 @@ public class Soldier extends MyRobot {
                 }
                 MapLocation loc = getFreeSpace();
 
-                if (loc != null){
+                if (loc != null) {
                     bfs.move(loc);
                     return;
                 }
                 break;
-            case 2:
-                bfs.move(comm.enemyHQloc);
+            }
+            case 2: {// emergency
+                task = comm.getTask();
+                MapLocation nearbyEnemy = enemyInSight();
+                if (nearbyEnemy != null) {
+                    bfs.move(nearbyEnemy);
+                    return;
+                }
+                if (comm.HQloc != null) {
+                    bfs.move(comm.HQloc);
+                }
+                break;
+            }
             default:
         }
 
@@ -161,11 +169,7 @@ public class Soldier extends MyRobot {
                     if (target == null) {
                         target = cell;
                     }
-                    else if (myLoc.distanceSquaredTo(cell) < myLoc.distanceSquaredTo(target) &&
-                            cell.distanceSquaredTo(new MapLocation(0, cell.y)) > W - GameConstants.MAP_MAX_WIDTH &&
-                            cell.distanceSquaredTo(new MapLocation(W, cell.y)) > W - GameConstants.MAP_MAX_WIDTH &&
-                            cell.distanceSquaredTo(new MapLocation(cell.x, 0)) > H - GameConstants.MAP_MAX_HEIGHT &&
-                            cell.distanceSquaredTo(new MapLocation(cell.x, H)) > H - GameConstants.MAP_MAX_HEIGHT)
+                    else if (myLoc.distanceSquaredTo(cell) < myLoc.distanceSquaredTo(target))
                     { // should try to build lattice away from wall/toward enemy
                         target = cell;
                     }

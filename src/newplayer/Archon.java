@@ -25,6 +25,7 @@ public class Archon extends MyRobot {
             comm.writeAllyArchonLocation();
             getMines(); // change to pick hq based on rubble?
         };
+        checkForAttackers(); //sends emergency to all soldiers
         if (rc.getMode() == RobotMode.TURRET) {
             if (!arrived) {
                 if (minersBuilt > depositsDetected) {
@@ -53,6 +54,15 @@ public class Archon extends MyRobot {
         }
     }
 
+    void checkForAttackers() {
+        RobotInfo[] robots = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
+        if (robots.length > 2) {
+            comm.setTask(2);
+        }
+        else {
+            comm.setTask(1);
+        }
+    }
     void tryMove(){
         if (comm.HQloc == null) {
             comm.readHQloc();
@@ -77,7 +87,8 @@ public class Archon extends MyRobot {
     }
 
     void tryBuild(){
-        if (minersBuilt < soldiersBuilt / 2 + 5 && soldiersBuilt > 0) {
+        int task = comm.getTask(); // check if emergency, if so we'll build soldiers
+        if (minersBuilt < soldiersBuilt / 2 + 5 && soldiersBuilt > 0 && task != 2) {
             for (Direction dir : Direction.allDirections()) {
                 try {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
@@ -90,7 +101,7 @@ public class Archon extends MyRobot {
                 }
             }
         }
-        else if(arrived && builderCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.BUILDER.buildCostLead)
+        else if(arrived && builderCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.BUILDER.buildCostLead && task !=2)
         {
             for (Direction dir : Direction.allDirections())
             {

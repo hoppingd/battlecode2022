@@ -33,8 +33,10 @@ public class Miner extends MyRobot {
         }
         else if (rc.canMineLead(myLoc)) {
             try {
-                rc.mineLead(myLoc);
-                moved = true; //temp fix to keep mining
+                if (rc.senseLead(myLoc) > 1) { // if the lead is close to enemy we should deplete it
+                    rc.mineLead(myLoc);
+                    moved = true; //temp fix to keep mining
+                }
             } catch (Throwable t) {
                 t.printStackTrace();
             }
@@ -90,6 +92,7 @@ public class Miner extends MyRobot {
     MapLocation getClosestMine(){
         MapLocation myLoc = rc.getLocation();
         MapLocation bestMine = null;
+        int bestAmount = 0;
         int bestGold = 0;
         try {
             MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
@@ -97,7 +100,14 @@ public class Miner extends MyRobot {
                 if (!rc.canSenseLocation(cell)) continue; // needed?
                 int lead = rc.senseLead(cell);
                 if (lead > 0) {
-                    if (bestMine == null && !rc.canSenseRobotAtLocation(cell)) bestMine = cell;
+                    if (!rc.canSenseRobotAtLocation(cell)) {
+                        bestMine = cell;
+                        bestAmount = lead;
+                    }
+                    if (lead > bestAmount) {
+                        bestMine = cell;
+                        bestAmount = lead;
+                    }
                     // probably check for the closest deposit
                     // consider the amount of lead in the deposit
                     // consider if other bots are going there
