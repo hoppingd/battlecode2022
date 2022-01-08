@@ -23,7 +23,7 @@ public class Archon extends MyRobot {
     public void play(){
         if (rc.getRoundNum() == birthday) { //update periodically
             comm.writeAllyArchonLocation();
-            getMines();
+            getMines(); // change to pick hq based on rubble?
         };
         if (rc.getMode() == RobotMode.TURRET) {
             if (!arrived) {

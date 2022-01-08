@@ -7,6 +7,7 @@ public class Soldier extends MyRobot {
     SoldierScout scout;
     boolean moved = false;
     int birthday;
+    int H, W;
     Team myTeam, enemyTeam;
 
     int task = 0;
@@ -15,6 +16,8 @@ public class Soldier extends MyRobot {
         super(rc);
         scout = new SoldierScout(rc, comm);
         birthday = rc.getRoundNum();
+        H = rc.getMapHeight();
+        W = rc.getMapWidth();
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
     }
@@ -158,7 +161,12 @@ public class Soldier extends MyRobot {
                     if (target == null) {
                         target = cell;
                     }
-                    else if (myLoc.distanceSquaredTo(cell) < myLoc.distanceSquaredTo(target)){ // should try to build lattice away from wall/toward enemy
+                    else if (myLoc.distanceSquaredTo(cell) < myLoc.distanceSquaredTo(target) &&
+                            cell.distanceSquaredTo(new MapLocation(0, cell.y)) > W - GameConstants.MAP_MAX_WIDTH &&
+                            cell.distanceSquaredTo(new MapLocation(W, cell.y)) > W - GameConstants.MAP_MAX_WIDTH &&
+                            cell.distanceSquaredTo(new MapLocation(cell.x, 0)) > H - GameConstants.MAP_MAX_HEIGHT &&
+                            cell.distanceSquaredTo(new MapLocation(cell.x, H)) > H - GameConstants.MAP_MAX_HEIGHT)
+                    { // should try to build lattice away from wall/toward enemy
                         target = cell;
                     }
                 }
