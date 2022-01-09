@@ -1,5 +1,5 @@
 // [0] Pathing to HQ with flag: HQ_DECIDED yyyy yyxx xxxx
-// [1] Type flags: IS_SCOUT
+// [1] Task: 0 = scout, 1 = lattice, 2 = emergency
 // [2] Symmetry: MIR HOR VERT INITIAL_SYMMETRY
 // [3] Archon 1: ARCHON_SET yyyy yyxx xxxx
 // [4] Archon 2: ARCHON_SET yyyy yyxx xxxx
@@ -14,6 +14,7 @@
 // [13] Build code P2: CODE
 // [14] Build code P3: CODE
 // [15] Build code P4: CODE
+// [16] Emergency location: yyyy yyxx xxxx
 
 package newplayer;
 
@@ -182,6 +183,7 @@ public class Communication {
             //System.err.println("wrote hq at " + rc.getLocation());
             int code = (1 << 12) + (myLoc.y << 6) + myLoc.x;
             rc.writeSharedArray(0, code);
+            HQloc = myLoc;
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -249,7 +251,31 @@ public class Communication {
         if (HQloc == null) return null;
         return new MapLocation(W - HQloc.x - 1,H - HQloc.y - 1);
     }
+
+    // sets emergency location
+    void setEmergencyLoc(MapLocation loc) {
+        try {
+            int code = (1 << 12) + (loc.y << 6) + loc.x;
+            rc.writeSharedArray(16, code);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    MapLocation getEmergencyLoc() {
+        MapLocation loc = null;
+        try {
+            int code = rc.readSharedArray(0); //HQ_DECIDED yyyy yyxx xxxx
+            int x = code & 0x3F;
+            int y = (code >> 6) & 0x3F;
+            loc = new MapLocation(x, y);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return loc;
+    }
 }
+
 
 
 

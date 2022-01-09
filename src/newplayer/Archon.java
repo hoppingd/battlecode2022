@@ -10,11 +10,14 @@ public class Archon extends MyRobot {
     static final int P1_MINERS = 6;
     static final int P2_START = 80;
     static final int P3_START = 400;
-    static final int P4_START = 800;
+    static final int P4_START = 600;
     static final int P4_SAVINGS = 1000;
 
+    int H, W;
     Team myTeam, enemyTeam;
     int birthday;
+
+    MapLocation mirror;
 
     int minersBuilt = 0;
     int soldiersBuilt = 0;
@@ -28,10 +31,11 @@ public class Archon extends MyRobot {
 
     public Archon(RobotController rc){
         super(rc);
+        H = rc.getMapHeight();
+        W = rc.getMapWidth();
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
         birthday = rc.getRoundNum();
-
     }
 
     public void play(){
@@ -66,19 +70,21 @@ public class Archon extends MyRobot {
     }
 
     void checkForAttackers() {
+        if (!arrived) return;
         RobotInfo[] robots = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
-        if (robots.length > 3 && arrived) {
-            comm.setTask(2);
+        for (RobotInfo r : robots) {
+            if (r.getType() == RobotType.SOLDIER) {
+                comm.setEmergencyLoc(r.getLocation());
+                comm.setTask(2);
+            }
         }
-        else {
-            comm.setTask(1);
-        }
+        comm.setTask(1);
     }
     void tryMove(){
         if (comm.HQloc == null) {
             comm.readHQloc();
         }
-        if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, 10)) {
+        if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, 4)) {
             try {
                 if (rc.isTransformReady()) {
                     rc.transform();
@@ -103,6 +109,9 @@ public class Archon extends MyRobot {
             else if (soldiersBuilt < 1) {
                 return false; // hq build scout
             }
+            else if (task == 2) {
+                return false; // emergency
+            }
             else if (minersBuilt < P1_MINERS - comm.numArchons) { // hq build miners
                 return true;
             }
@@ -124,9 +133,6 @@ public class Archon extends MyRobot {
         }
         // PHASE 3
         else if (currRound < P4_START) {
-            if (task == 2) {
-                return false;
-            }
             int buildCode = comm.readBuildCode(3);
             if (buildCode == 1) {
                 comm.writeBuildCode(3,2);
@@ -139,7 +145,7 @@ public class Archon extends MyRobot {
         // PHASE 4
         else {
             int buildCode = comm.readBuildCode(4);
-            if (buildCode == 0 && currLead > P4_SAVINGS + RobotType.MINER.buildCostLead && task != 2) {
+            if (buildCode == 0 && currLead > P4_SAVINGS + RobotType.MINER.buildCostLead) {
                 comm.writeBuildCode(4,1);
                 return true;
             }
@@ -158,9 +164,6 @@ public class Archon extends MyRobot {
         }
         // PHASE 3
         else if (currRound < P4_START) {
-            if (task == 2) {
-                return false;
-            }
             int buildCode = comm.readBuildCode(3);
             if (buildCode == 0) {
                 comm.writeBuildCode(3,1);
@@ -174,7 +177,7 @@ public class Archon extends MyRobot {
         // PHASE 4
         else {
             int buildCode = comm.readBuildCode(4);
-            if (buildCode == 1 && currLead > P4_SAVINGS + RobotType.BUILDER.buildCostLead && task != 2) {
+            if (buildCode == 1 && currLead > P4_SAVINGS + RobotType.BUILDER.buildCostLead) {
                 comm.writeBuildCode(4,2);
                 return true;
             }
@@ -185,6 +188,8 @@ public class Archon extends MyRobot {
     boolean shouldBuildSoldier() {
         // PHASE 1
         if (currRound < P2_START) {
+            if (currLead > comm.numArchons * RobotType.MINER.buildCostLead) return true;
+            if (task == 2) return true;
             if (soldiersBuilt < 1) {
                 return arrived;
             }
@@ -206,9 +211,6 @@ public class Archon extends MyRobot {
         }
         // PHASE 3
         else if (currRound < P4_START) {
-            if (task == 2) {
-                return true;
-            }
             int buildCode = comm.readBuildCode(3);
             if (buildCode == 2) {
                 comm.writeBuildCode(3,0);
@@ -221,7 +223,7 @@ public class Archon extends MyRobot {
         // PHASE 4
         else {
             int buildCode = comm.readBuildCode(4);
-            if ((buildCode == 2 && currLead > P4_SAVINGS + RobotType.SOLDIER.buildCostLead) || task == 2) {
+            if ((buildCode == 2 && currLead > P4_SAVINGS + RobotType.SOLDIER.buildCostLead)) {
                 comm.writeBuildCode(4,0);
                 return true;
             }
@@ -236,8 +238,9 @@ public class Archon extends MyRobot {
     void tryBuild(){
         task = comm.getTask(); // check if emergency, if so we'll build soldiers
         getMines(); // update deposits detected
+        MapLocation myLoc = rc.getLocation();
         if (currLead >= RobotType.MINER.buildCostLead && shouldBuildMiner()) {
-            for (Direction dir : Direction.allDirections()) { //TODO: spawn in ideal direction
+            for (Direction dir : Direction.allDirections()) { //TODO: spawn in ideal direction (see soldier), also don't need center
                 try {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
                         rc.buildRobot(RobotType.MINER, dir); // we simply spam miners
@@ -265,17 +268,25 @@ public class Archon extends MyRobot {
             }
         }
         else if (currLead >= RobotType.SOLDIER.buildCostLead && shouldBuildSoldier()) {
-            for (Direction dir : Direction.allDirections()) {
-                try {
+            Direction bestDir = null;
+            try {
+                for (Direction dir : Direction.allDirections()) {
                     if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
-                        rc.buildRobot(RobotType.SOLDIER, dir); // we simply spam soldiers
-                        soldiersBuilt++;
-                        comm.setTask(1); // for now we only build one scout
-                        break;
+                        if (bestDir == null) {
+                            bestDir = dir;
+                        }
+                        else if (myLoc.add(dir).distanceSquaredTo(comm.getHQOpposite()) < myLoc.add(bestDir).distanceSquaredTo(comm.getHQOpposite())) {
+                            bestDir = dir;
+                        }
                     }
-                } catch (Throwable t) {
-                    t.printStackTrace();
                 }
+                if (bestDir != null) {
+                    rc.buildRobot(RobotType.SOLDIER, bestDir); // we simply spam soldiers
+                    soldiersBuilt++;
+                    comm.setTask(1); // for now we only build one scout
+                }
+            } catch (Throwable t) {
+                t.printStackTrace();
             }
         }
         else if (currLead >= RobotType.SAGE.buildCostLead && shouldBuildSage()) {

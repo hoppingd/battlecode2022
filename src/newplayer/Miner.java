@@ -21,51 +21,57 @@ public class Miner extends MyRobot {
         moved = false;
         tryMine();
         tryMove();
+        tryMine();
     }
 
     void tryMine(){
         if (mined) return;
-        MapLocation bestMine = null;
-        int bestAmount = 0;
-        int bestGold = 0;
-        try {
-            MapLocation leadMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.actionRadiusSquared);
-            for (MapLocation mine : leadMines) {
-                int lead = rc.senseLead(mine);
-                if (lead > MIN_LEAD_TO_MINE) {
-                    if (bestMine == null) {
-                        bestMine = mine;
-                        bestAmount = lead;
+        while(rc.isActionReady()) {
+            MapLocation bestMine = null;
+            int bestAmount = 0;
+            int bestGold = 0;
+            try {
+                MapLocation leadMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.actionRadiusSquared);
+                for (MapLocation mine : leadMines) {
+                    int lead = rc.senseLead(mine);
+                    if (lead > MIN_LEAD_TO_MINE) {
+                        if (bestMine == null) {
+                            bestMine = mine;
+                            bestAmount = lead;
+                        }
+                        if (lead > bestAmount) {
+                            bestMine = mine;
+                            bestAmount = lead;
+                        }
                     }
-                    if (lead > bestAmount) {
+                }
+                MapLocation goldMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.actionRadiusSquared);
+                for (MapLocation mine : goldMines) {
+                    int gold = rc.senseGold(mine);
+                    if (gold > bestGold) {
                         bestMine = mine;
-                        bestAmount = lead;
+                        bestGold = gold;
+                    }
+                    // probably check for the closest deposit
+                    // consider the amount of gold in the deposit
+                    // consider if other bots are going there
+                }
+                if (bestMine != null) {
+                    if (rc.canMineGold(bestMine)) {
+                        rc.mineGold(bestMine);
+                    }
+                    else if (rc.canMineLead(bestMine)) {
+                        rc.mineLead(bestMine);
                     }
                 }
-            }
-            MapLocation goldMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.actionRadiusSquared);
-            for (MapLocation mine : goldMines) {
-                int gold = rc.senseGold(mine);
-                if (gold > bestGold) {
-                    bestMine = mine;
-                    bestGold = gold;
+                else {
+                    break;
                 }
-                // probably check for the closest deposit
-                // consider the amount of gold in the deposit
-                // consider if other bots are going there
+            } catch (Throwable t) {
+                t.printStackTrace();
             }
-            if (bestMine != null) {
-                if (rc.canMineGold(bestMine)) {
-                    rc.mineGold(bestMine);
-                }
-                else if (rc.canMineLead(bestMine)) {
-                    rc.mineLead(bestMine);
-                }
-            }
-
-        } catch (Throwable t) {
-            t.printStackTrace();
         }
+
     }
 
     void tryMove(){

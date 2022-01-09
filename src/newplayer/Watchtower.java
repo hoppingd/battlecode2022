@@ -92,7 +92,7 @@ public class Watchtower extends MyRobot {
             if (r.getType() == RobotType.WATCHTOWER) return false;
         }
         int d1 = loc.distanceSquaredTo(nearestCorner);
-        return d1 >= rc.getLocation().distanceSquaredTo(nearestCorner) && rc.senseNearbyRobots(loc, 2, rc.getTeam()).length < 3;
+        return d1 >= comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H*W) && rc.senseNearbyRobots(loc, 2, rc.getTeam()).length < 3;
     }
 
     MapLocation getFreeSpace() {

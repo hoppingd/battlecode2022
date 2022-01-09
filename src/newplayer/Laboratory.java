@@ -18,16 +18,25 @@ public class Laboratory extends MyRobot {
     }
 
     void play(){
-        if (rc.getTeamGoldAmount(myTeam) <= rc.getTeamGoldAmount(enemyTeam) && rc.getTeamLeadAmount(myTeam) > P4_SAVINGS) {
-            try{
+        transmute();
+
+    }
+
+    boolean transmute() {
+        int currLead = rc.getTeamLeadAmount(myTeam);
+        // need to win
+        if (rc.getTeamGoldAmount(myTeam) <= rc.getTeamGoldAmount(enemyTeam) && currLead > P4_SAVINGS) {
+            try {
                 if (rc.canTransmute()) {
                     rc.transmute();
+                    return true;
                 }
-            } catch (Throwable e){
+            } catch (Throwable e) {
                 e.printStackTrace();
             }
         }
+        // want more gold
+        return false;
     }
-
 }
 

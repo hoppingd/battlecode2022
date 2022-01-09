@@ -96,11 +96,13 @@ public class Soldier extends MyRobot {
             }
             case 1: {// defensive lattice
                 task = comm.getTask(); // update task in case of emergency or mass attack
+                /* chase code
                 MapLocation nearbyEnemy = enemyInSight();
                 if (nearbyEnemy != null) {
                     bfs.move(nearbyEnemy);
                     return;
-                }
+
+                 */
                 if (rc.senseNearbyRobots(rc.getLocation(), 1, rc.getTeam()).length == 0) { // some spacing condition
                     return;
                 }
@@ -113,16 +115,7 @@ public class Soldier extends MyRobot {
                 break;
             }
             case 2: {// emergency
-                task = comm.getTask();
-                MapLocation nearbyEnemy = enemyInSight();
-                if (nearbyEnemy != null) {
-                    bfs.move(nearbyEnemy);
-                    return;
-                }
-                if (comm.HQloc != null) {
-                    bfs.move(comm.HQloc);
-                }
-                break;
+                bfs.move(comm.getEmergencyLoc());
             }
             default:
         }

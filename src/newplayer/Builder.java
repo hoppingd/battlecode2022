@@ -6,7 +6,7 @@ import java.awt.*;
 
 public class Builder extends MyRobot {
 
-    static final int P4_START = 800;
+    static final int P4_START = 600;
     boolean moved = false;
     int watchCount = 0;
     int H, W;
