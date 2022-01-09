@@ -169,7 +169,7 @@ public class Soldier extends MyRobot {
                     if (target == null) {
                         target = cell;
                     }
-                    else if (myLoc.distanceSquaredTo(cell) < myLoc.distanceSquaredTo(target))
+                    else if (cell.distanceSquaredTo(comm.getHQOpposite()) < target.distanceSquaredTo(comm.getHQOpposite()))
                     { // should try to build lattice away from wall/toward enemy
                         target = cell;
                     }

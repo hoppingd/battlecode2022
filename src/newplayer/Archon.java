@@ -3,15 +3,28 @@ package newplayer;
 import battlecode.common.*;
 
 public class Archon extends MyRobot {
+    //P1: build scout, miners, and voyage
+    //P2: spam soldiers to stop rush
+    //P3: disintegrate builders to start lead engine
+    //P4: start stockpiling lead for watchtowers and laboratory
+    static final int P1_MINERS = 6;
+    static final int P2_START = 80;
+    static final int P3_START = 400;
+    static final int P4_START = 800;
+    static final int P4_SAVINGS = 1000;
 
     Team myTeam, enemyTeam;
+    int birthday;
 
     int minersBuilt = 0;
     int soldiersBuilt = 0;
     int builderCount = 0;
+    int p4BuilderRound = 0;
     int depositsDetected = 0;
-    int birthday;
+
     boolean arrived = false;
+    int currRound = 0;
+    int task = 0;
 
     public Archon(RobotController rc){
         super(rc);
@@ -21,28 +34,20 @@ public class Archon extends MyRobot {
     }
 
     public void play(){
-
-        if (rc.getRoundNum() == birthday) { //update periodically
+        int currRound = rc.getRoundNum();
+        if (currRound == birthday) { //update periodically
             comm.writeAllyArchonLocation();
-            getMines(); // change to pick hq based on rubble?
+            if (comm.setHQloc(rc.getLocation())) {
+                arrived = true;
+            }
         };
-        if (rc.getRoundNum() < 150) {
-
-        }
         checkForAttackers(); //sends emergency to all soldiers
         if (rc.getMode() == RobotMode.TURRET) {
             if (!arrived) {
-                if (minersBuilt > depositsDetected) {
+                if (minersBuilt >= P1_MINERS - comm.numArchons || currRound >= P2_START) { // archon voyage
                     try {
-                        if (comm.setHQloc(rc.getLocation())) {
-                            comm.setTask(1); //stop building scouts;
-                            arrived = true;
-                        }
-                        else {
-                            //System.err.println("hq should be going portable at " + rc.getLocation());
-                            if (rc.isTransformReady()) {
-                                rc.transform();
-                            }
+                        if (rc.isTransformReady()) {
+                            rc.transform();
                         }
                     } catch (Throwable t) {
                         t.printStackTrace();
@@ -60,7 +65,7 @@ public class Archon extends MyRobot {
 
     void checkForAttackers() {
         RobotInfo[] robots = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
-        if (robots.length > 2) {
+        if (robots.length > 3 && arrived) {
             comm.setTask(2);
         }
         else {
@@ -84,16 +89,158 @@ public class Archon extends MyRobot {
         else {
             bfs.move(comm.HQloc);
         }
-        /*if (rc.getRoundNum() - birthday > exploreRounds){
-            if (goToEnemyHQ()) return;
-        }*/
         return;
     }
 
+    boolean shouldBuildMiner() {
+        // PHASE 1
+        if (currRound < P2_START) {
+            if (!arrived) {
+                return true; // returns true if the archon hasn't started voyaging
+            }
+            else if (soldiersBuilt < 1) {
+                return false;
+            }
+            else if (minersBuilt < P1_MINERS - comm.numArchons) {
+                return true;
+            }
+            return false;
+        }
+        // PHASE 2
+        else if (currRound < P3_START) {
+            if (task == 2) {
+                return false;
+            }
+            int buildBit = comm.readBuildBits(2);
+            switch(buildBit) {
+                case 0: {
+                    comm.writeBuildBits(2,1);
+                    return true;
+                }
+                case 1: {
+                    return false;
+                }
+            }
+        }
+        // PHASE 3
+        else if (currRound < P4_START) {
+            if (task == 2) {
+                return false;
+            }
+            int buildBit = comm.readBuildBits(3);
+            switch(buildBit) {
+                case 2:
+                case 0: {
+                    return false;
+                }
+                case 1: {
+                    comm.writeBuildBits(3,2);
+                    return true;
+                }
+            }
+        }
+        // PHASE 4
+        else if (rc.getTeamLeadAmount(myTeam) < rc.getTeamLeadAmount(enemyTeam)) {
+            return true;
+        }
+        return false;
+    }
+
+    boolean shouldBuildBuilder() {
+        // PHASE 1
+        if (currRound < P2_START) {
+            return false;
+        }
+        // PHASE 2
+        else if (currRound < P3_START) {
+            if (minersBuilt > depositsDetected && builderCount < 2) { // if lead is low, create some mines
+                return true;
+            }
+            return false;
+        }
+        // PHASE 3
+        else if (currRound < P4_START) {
+            if (task == 2) {
+                return false;
+            }
+            int buildBit = comm.readBuildBits(3);
+            switch(buildBit) {
+                case 2:
+                case 1: {
+                    return false;
+                }
+                case 0: {
+                    if (depositsDetected < 15) { // if lead is low, create some mines
+                        return true;
+                    }
+                    comm.writeBuildBits(3,1);
+                    return false;
+                }
+            }
+        }
+        // PHASE 4
+        else if (rc.getTeamLeadAmount(myTeam) > P4_SAVINGS && builderCount < depositsDetected + currRound/10 && task != 2) {
+            return true;
+        }
+        return false;
+    }
+
+    boolean shouldBuildSoldier() {
+        // PHASE 1
+        if (currRound < P2_START) {
+            if (soldiersBuilt < 1) {
+                return arrived;
+            }
+            return false;
+        }
+        // PHASE 2
+        else if (currRound < P3_START) {
+            if (task == 2) {
+                return true;
+            }
+            int buildBit = comm.readBuildBits(2);
+            switch(buildBit) {
+                case 0: {
+                    return false;
+                }
+                case 1: {
+                    comm.writeBuildBits(2,0);
+                    return true;
+                }
+            }
+        }
+        // PHASE 3
+        else if (currRound < P4_START) {
+            if (task == 2) {
+                return true;
+            }
+            int buildBit = comm.readBuildBits(3);
+            switch(buildBit) {
+                case 0:
+                case 1: {
+                    return false;
+                }
+                case 2: {
+                    comm.writeBuildBits(2,0);
+                    return true;
+                }
+            }
+        }
+        else if (task == 2) {
+            return true;
+        }
+        return false;
+    }
+
+    boolean shouldBuildSage() {
+        return false;
+    }
+
     void tryBuild(){
-        int task = comm.getTask(); // check if emergency, if so we'll build soldiers
-        if (minersBuilt < soldiersBuilt / 2 + 5 && soldiersBuilt > 0 && task != 2) {
-            for (Direction dir : Direction.allDirections()) {
+        task = comm.getTask(); // check if emergency, if so we'll build soldiers
+        getMines(); // update deposits detected
+        if (shouldBuildMiner()) {
+            for (Direction dir : Direction.allDirections()) { //TODO: spawn in ideal direction
                 try {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
                         rc.buildRobot(RobotType.MINER, dir); // we simply spam miners
@@ -105,14 +252,14 @@ public class Archon extends MyRobot {
                 }
             }
         }
-        else if(arrived && builderCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.BUILDER.buildCostLead && task !=2)
+        else if(shouldBuildBuilder())
         {
             for (Direction dir : Direction.allDirections())
             {
                 try {
                     if (rc.canBuildRobot(RobotType.BUILDER, dir)){
-                        builderCount++;
                         rc.buildRobot(RobotType.BUILDER, dir); // we spawn builders based on num needed
+                        builderCount++;
                         break;
                     }
                 } catch (Throwable t) {
@@ -120,18 +267,22 @@ public class Archon extends MyRobot {
                 }
             }
         }
-        else if (rc.getTeamLeadAmount(myTeam) > RobotType.SOLDIER.buildCostLead) {
+        else if (shouldBuildSoldier()) {
             for (Direction dir : Direction.allDirections()) {
                 try {
                     if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
                         rc.buildRobot(RobotType.SOLDIER, dir); // we simply spam soldiers
                         soldiersBuilt++;
+                        comm.setTask(1); // for now we only build one scout
                         break;
                     }
                 } catch (Throwable t) {
                     t.printStackTrace();
                 }
             }
+        }
+        else if (shouldBuildSage()) {
+
         }
         else { // failed spawn, we'll try to heal
             RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
@@ -182,6 +333,7 @@ public class Archon extends MyRobot {
     }*/
 
     void getMines(){
+        depositsDetected = 0;
         MapLocation myLoc = rc.getLocation();
         try {
             MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
@@ -201,6 +353,10 @@ public class Archon extends MyRobot {
         } catch (Throwable t) {
             t.printStackTrace();
         }
+    }
+
+    boolean isHQ() {
+        return rc.getLocation() == comm.HQloc;
     }
 
 }

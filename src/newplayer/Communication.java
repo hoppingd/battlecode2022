@@ -9,6 +9,9 @@
 // [8] EnemyArchon 2: ARCHON_SET yyyy yyxx xxxx
 // [9] EnemyArchon 3: ARCHON_SET yyyy yyxx xxxx
 // [10] EnemyArchon 4: ARCHON_SET yyyy yyxx xxxx
+// [11] Build Management: P3 P3 P2
+// [12] Lab is built : IS_BUILT
+
 package newplayer;
 
 import battlecode.common.MapLocation;
@@ -198,4 +201,67 @@ public class Communication {
             t.printStackTrace();
         }
     }
+
+    int readBuildBits(int phase) {
+        int buildBits = 0;
+        try {
+            switch (phase) {
+                case 2: {
+                    buildBits = rc.readSharedArray(11);
+                    break;
+                }
+                case 3: {
+                    buildBits = rc.readSharedArray(11) & 6;
+                    break;
+                }
+                case 4: {
+                    buildBits = rc.readSharedArray(11) & 4;
+                    break;
+                }
+                default:
+            }
+
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return buildBits;
+    }
+
+    void writeBuildBits(int phase, int buildBits) {
+        int code = buildBits;
+        if (phase == 3) buildBits = buildBits << 1;
+        if (phase == 4) buildBits = buildBits << 3;
+        try {
+            rc.writeSharedArray(11, code);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return;
+    }
+
+    boolean labIsBuilt() {
+        boolean isBuilt = false;
+        try {
+            isBuilt = rc.readSharedArray(12) == 1;
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return isBuilt;
+    }
+
+    void setLabBuilt() {
+        try {
+            rc.writeSharedArray(12, 1);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    MapLocation getHQOpposite() {
+        if (HQloc == null) return null;
+        return new MapLocation(W - HQloc.x,H - HQloc.y);
+    }
 }
+
+
+
