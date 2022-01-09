@@ -10,6 +10,7 @@ public class Soldier extends MyRobot {
     int H, W;
     Team myTeam, enemyTeam;
 
+    MapLocation nearestCorner;
     int task = 0;
 
     public Soldier(RobotController rc){
@@ -20,6 +21,8 @@ public class Soldier extends MyRobot {
         W = rc.getMapWidth();
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
+        comm.readHQloc();
+        nearestCorner = getNearestCorner();
     }
 
     public void play(){
@@ -158,6 +161,11 @@ public class Soldier extends MyRobot {
         }
     }*/
 
+    boolean validLattice(MapLocation loc) {
+        int d1 = loc.distanceSquaredTo(nearestCorner);
+        return d1 > Math.sqrt(Math.sqrt(H*W)) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner);
+    }
+
     MapLocation getFreeSpace(){ // soldiers will find closest free space
         MapLocation myLoc = rc.getLocation();
         MapLocation target = null;
@@ -165,11 +173,11 @@ public class Soldier extends MyRobot {
             MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells) { // interlinked
                 if (!rc.canSenseLocation(cell)) continue; // needed?
-                if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length == 0) { // some spacing condition
+                if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length == 0 && validLattice(cell)) { // some spacing condition
                     if (target == null) {
                         target = cell;
                     }
-                    else if (cell.distanceSquaredTo(comm.getHQOpposite()) < target.distanceSquaredTo(comm.getHQOpposite()))
+                    else if (cell.distanceSquaredTo(myLoc) < target.distanceSquaredTo(myLoc))
                     { // should try to build lattice away from wall/toward enemy
                         target = cell;
                     }
@@ -182,4 +190,23 @@ public class Soldier extends MyRobot {
         return target;
     }
 
+    MapLocation getNearestCorner() {
+        int x;
+        int y;
+        int W1 = W - 1;
+        int H1 = H - 1;
+        if(W1 - comm.HQloc.x > comm.HQloc.x) {
+            x = 0;
+        }
+        else {
+            x = W1;
+        }
+        if(H1 - comm.HQloc.y > comm.HQloc.y) {
+            y = 0;
+        }
+        else {
+            y = H1;
+        }
+        return new MapLocation(x,y);
+    }
 }

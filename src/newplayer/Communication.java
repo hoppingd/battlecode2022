@@ -9,8 +9,11 @@
 // [8] EnemyArchon 2: ARCHON_SET yyyy yyxx xxxx
 // [9] EnemyArchon 3: ARCHON_SET yyyy yyxx xxxx
 // [10] EnemyArchon 4: ARCHON_SET yyyy yyxx xxxx
-// [11] Build Management: P3 P3 P2
-// [12] Lab is built : IS_BUILT
+// [11] Lab is built : IS_BUILT
+// [12] Build code P1: CODE
+// [13] Build code P2: CODE
+// [14] Build code P3: CODE
+// [15] Build code P4: CODE
 
 package newplayer;
 
@@ -21,6 +24,9 @@ public class Communication {
 
     final static int ALLY_ARCHON_ARRAY_START = 3;
     final static int ENEMY_ARCHON_ARRAY_START = 7;
+    final static int BUILD_CODE_ARRAY_START = 12;
+    final static int NUM_PHASES = 4;
+
     RobotController rc;
     MapLocation HQloc = null;
     MapLocation enemyHQloc = null; // for now, we only keep track of the enemy archon that matches our HQ
@@ -202,37 +208,19 @@ public class Communication {
         }
     }
 
-    int readBuildBits(int phase) {
-        int buildBits = 0;
+    int readBuildCode(int phase) {
+        int build = 0;
         try {
-            switch (phase) {
-                case 2: {
-                    buildBits = rc.readSharedArray(11);
-                    break;
-                }
-                case 3: {
-                    buildBits = rc.readSharedArray(11) & 6;
-                    break;
-                }
-                case 4: {
-                    buildBits = rc.readSharedArray(11) & 4;
-                    break;
-                }
-                default:
-            }
-
+            build = rc.readSharedArray(BUILD_CODE_ARRAY_START - 1 + phase);
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return buildBits;
+        return build;
     }
 
-    void writeBuildBits(int phase, int buildBits) {
-        int code = buildBits;
-        if (phase == 3) buildBits = buildBits << 1;
-        if (phase == 4) buildBits = buildBits << 3;
+    void writeBuildCode(int phase, int buildCode) {
         try {
-            rc.writeSharedArray(11, code);
+            rc.writeSharedArray(BUILD_CODE_ARRAY_START - 1 + phase, buildCode);
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -242,7 +230,7 @@ public class Communication {
     boolean labIsBuilt() {
         boolean isBuilt = false;
         try {
-            isBuilt = rc.readSharedArray(12) == 1;
+            isBuilt = rc.readSharedArray(11) == 1;
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -251,7 +239,7 @@ public class Communication {
 
     void setLabBuilt() {
         try {
-            rc.writeSharedArray(12, 1);
+            rc.writeSharedArray(11, 1);
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -259,7 +247,7 @@ public class Communication {
 
     MapLocation getHQOpposite() {
         if (HQloc == null) return null;
-        return new MapLocation(W - HQloc.x,H - HQloc.y);
+        return new MapLocation(W - HQloc.x - 1,H - HQloc.y - 1);
     }
 }
 

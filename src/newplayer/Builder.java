@@ -2,19 +2,25 @@ package newplayer;
 
 import battlecode.common.*;
 
+import java.awt.*;
+
 public class Builder extends MyRobot {
 
     static final int P4_START = 800;
     boolean moved = false;
     int watchCount = 0;
+    int H, W;
     Team myTeam, enemyTeam;
     int task = 0;
     MapLocation nearestCorner;
 
     public Builder(RobotController rc){
         super(rc);
+        H = rc.getMapHeight();
+        W = rc.getMapWidth();
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
+        comm.readHQloc();
         nearestCorner = getNearestCorner();
     }
 
@@ -44,7 +50,10 @@ public class Builder extends MyRobot {
             }
         }
         try {
-            if (bestRepair != null) rc.repair(bestRepair);
+            if (bestRepair != null) {
+                rc.repair(bestRepair);
+                return true;
+            }
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -52,15 +61,15 @@ public class Builder extends MyRobot {
     }
 
     void tryDisintegrate() {
-        if (rc.getRoundNum() < 800) {
+        if (rc.getRoundNum() < P4_START || watchCount > 0) {
+            MapLocation myLoc = rc.getLocation();
             try {
-                if (rc.senseLead(rc.getLocation()) == 0) {
+                if (rc.senseLead(myLoc) == 0 && validProspect(myLoc)) {
                     rc.disintegrate();
                 }
             } catch (Throwable t) {
                 t.printStackTrace();
             }
-
         }
     }
     void tryBuild(){
@@ -77,12 +86,12 @@ public class Builder extends MyRobot {
                 }
             }
         }
-        else if(watchCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.WATCHTOWER.buildCostLead && rc.getRoundNum() > 800)
+        else if(watchCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.WATCHTOWER.buildCostLead && rc.getRoundNum() >= P4_START)
         {
             for (Direction dir : Direction.allDirections())
             {
                 try {
-                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir)){
+                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && validTowerLoc(rc.getLocation().add(dir))){
                         watchCount++;
                         rc.buildRobot(RobotType.WATCHTOWER, dir); // we spawn builders based on num needed
                         break;
@@ -96,18 +105,22 @@ public class Builder extends MyRobot {
 
     void tryMove(){
         MapLocation target = null;
-        if (rc.getRoundNum() < 800 && task !=2) {
+        if (rc.getRoundNum() < P4_START && task !=2) {
             target = getMineProspect();
         }
         else if (!comm.labIsBuilt()) {
             target = nearestCorner;
         }
         if (target == null) target = getHurtRobot();
-        if (target != null) bfs.move(target);
+        if (target != null) {
+            bfs.move(target);
+        }
+        else {
+            bfs.move(explore.getExploreTarget());
+        }
     }
 
     void tryRepairBuilding() {
-        MapLocation myLoc = rc.getLocation();
         RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
         MapLocation bestRepair = null;
         int bestHealth = 0;
@@ -143,6 +156,19 @@ public class Builder extends MyRobot {
         return bestRepair;
     }
 
+    boolean validProspect(MapLocation loc) {
+        return loc.distanceSquaredTo(comm.HQloc) > 2 && loc.distanceSquaredTo(nearestCorner) > Math.sqrt(Math.sqrt(H*W));
+    }
+
+    boolean validTowerLoc(MapLocation loc) {
+        RobotInfo[] robots = rc.senseNearbyRobots(loc,1, myTeam);
+        for (RobotInfo r : robots) {
+            if (r.getType() == RobotType.WATCHTOWER) return false;
+        }
+        int d1 = loc.distanceSquaredTo(nearestCorner);
+        return d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H*W);
+    }
+
     MapLocation getMineProspect() {
         MapLocation myLoc = rc.getLocation();
         MapLocation target = null;
@@ -152,7 +178,7 @@ public class Builder extends MyRobot {
             for (MapLocation cell : cells){
                 if (rc.senseLead(cell) > 0) break;
                 int dist = myLoc.distanceSquaredTo(cell);
-                if (dist < bestDist) {
+                if (dist < bestDist && validProspect(cell)) { // closest spot with no lead and not too close to corner or hq
                     bestDist = dist;
                     target = cell;
                 }
@@ -166,20 +192,19 @@ public class Builder extends MyRobot {
     MapLocation getNearestCorner() {
         int x;
         int y;
-        int W = rc.getMapWidth();
-        int H = rc.getMapHeight();
-        MapLocation myLoc = rc.getLocation();
-        if(W - myLoc.x > myLoc.x) {
+        int W1 = W - 1;
+        int H1 = H - 1;
+        if(W1 - comm.HQloc.x > comm.HQloc.x) {
             x = 0;
         }
         else {
-            x = W;
+            x = W1;
         }
-        if(H - myLoc.x > myLoc.x) {
+        if(H1 - comm.HQloc.y > comm.HQloc.y) {
             y = 0;
         }
         else {
-            y = H;
+            y = H1;
         }
         return new MapLocation(x,y);
     }

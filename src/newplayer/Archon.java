@@ -19,11 +19,11 @@ public class Archon extends MyRobot {
     int minersBuilt = 0;
     int soldiersBuilt = 0;
     int builderCount = 0;
-    int p4BuilderRound = 0;
     int depositsDetected = 0;
 
     boolean arrived = false;
     int currRound = 0;
+    int currLead = 0;
     int task = 0;
 
     public Archon(RobotController rc){
@@ -31,11 +31,13 @@ public class Archon extends MyRobot {
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
         birthday = rc.getRoundNum();
+
     }
 
     public void play(){
-        int currRound = rc.getRoundNum();
-        if (currRound == birthday) { //update periodically
+        currRound = rc.getRoundNum();
+        currLead = rc.getTeamLeadAmount(myTeam);
+        if (currRound == birthday) {
             comm.writeAllyArchonLocation();
             if (comm.setHQloc(rc.getLocation())) {
                 arrived = true;
@@ -96,12 +98,12 @@ public class Archon extends MyRobot {
         // PHASE 1
         if (currRound < P2_START) {
             if (!arrived) {
-                return true; // returns true if the archon hasn't started voyaging
+                return true; // archon hasn't started voyaging, build miner
             }
             else if (soldiersBuilt < 1) {
-                return false;
+                return false; // hq build scout
             }
-            else if (minersBuilt < P1_MINERS - comm.numArchons) {
+            else if (minersBuilt < P1_MINERS - comm.numArchons) { // hq build miners
                 return true;
             }
             return false;
@@ -109,17 +111,15 @@ public class Archon extends MyRobot {
         // PHASE 2
         else if (currRound < P3_START) {
             if (task == 2) {
-                return false;
+                return false; // emergency, build soldiers
             }
-            int buildBit = comm.readBuildBits(2);
-            switch(buildBit) {
-                case 0: {
-                    comm.writeBuildBits(2,1);
-                    return true;
-                }
-                case 1: {
-                    return false;
-                }
+            int buildCode = comm.readBuildCode(2); // alternate soldiers and miners
+            if (buildCode == 0) {
+                comm.writeBuildCode(2, 1);
+                return true;
+            }
+            else {
+                return false;
             }
         }
         // PHASE 3
@@ -127,21 +127,22 @@ public class Archon extends MyRobot {
             if (task == 2) {
                 return false;
             }
-            int buildBit = comm.readBuildBits(3);
-            switch(buildBit) {
-                case 2:
-                case 0: {
-                    return false;
-                }
-                case 1: {
-                    comm.writeBuildBits(3,2);
-                    return true;
-                }
+            int buildCode = comm.readBuildCode(3);
+            if (buildCode == 1) {
+                comm.writeBuildCode(3,2);
+                return true;
+            }
+            else {
+                return false;
             }
         }
         // PHASE 4
-        else if (rc.getTeamLeadAmount(myTeam) < rc.getTeamLeadAmount(enemyTeam)) {
-            return true;
+        else {
+            int buildCode = comm.readBuildCode(4);
+            if (buildCode == 0 && currLead > P4_SAVINGS + RobotType.MINER.buildCostLead && task != 2) {
+                comm.writeBuildCode(4,1);
+                return true;
+            }
         }
         return false;
     }
@@ -153,9 +154,6 @@ public class Archon extends MyRobot {
         }
         // PHASE 2
         else if (currRound < P3_START) {
-            if (minersBuilt > depositsDetected && builderCount < 2) { // if lead is low, create some mines
-                return true;
-            }
             return false;
         }
         // PHASE 3
@@ -163,24 +161,23 @@ public class Archon extends MyRobot {
             if (task == 2) {
                 return false;
             }
-            int buildBit = comm.readBuildBits(3);
-            switch(buildBit) {
-                case 2:
-                case 1: {
-                    return false;
-                }
-                case 0: {
-                    if (depositsDetected < 15) { // if lead is low, create some mines
-                        return true;
-                    }
-                    comm.writeBuildBits(3,1);
-                    return false;
+            int buildCode = comm.readBuildCode(3);
+            if (buildCode == 0) {
+                comm.writeBuildCode(3,1);
+                if (depositsDetected < 25) { // if lead is low, create some mines
+                    return true;
                 }
             }
+            return false;
+
         }
         // PHASE 4
-        else if (rc.getTeamLeadAmount(myTeam) > P4_SAVINGS && builderCount < depositsDetected + currRound/10 && task != 2) {
-            return true;
+        else {
+            int buildCode = comm.readBuildCode(4);
+            if (buildCode == 1 && currLead > P4_SAVINGS + RobotType.BUILDER.buildCostLead && task != 2) {
+                comm.writeBuildCode(4,2);
+                return true;
+            }
         }
         return false;
     }
@@ -198,15 +195,13 @@ public class Archon extends MyRobot {
             if (task == 2) {
                 return true;
             }
-            int buildBit = comm.readBuildBits(2);
-            switch(buildBit) {
-                case 0: {
-                    return false;
-                }
-                case 1: {
-                    comm.writeBuildBits(2,0);
-                    return true;
-                }
+            int buildCode = comm.readBuildCode(2);
+            if (buildCode == 1) {
+                comm.writeBuildCode(2, 0);
+                return true;
+            }
+            else {
+                return false;
             }
         }
         // PHASE 3
@@ -214,20 +209,22 @@ public class Archon extends MyRobot {
             if (task == 2) {
                 return true;
             }
-            int buildBit = comm.readBuildBits(3);
-            switch(buildBit) {
-                case 0:
-                case 1: {
-                    return false;
-                }
-                case 2: {
-                    comm.writeBuildBits(2,0);
-                    return true;
-                }
+            int buildCode = comm.readBuildCode(3);
+            if (buildCode == 2) {
+                comm.writeBuildCode(3,0);
+                return true;
+            }
+            else {
+                return false;
             }
         }
-        else if (task == 2) {
-            return true;
+        // PHASE 4
+        else {
+            int buildCode = comm.readBuildCode(4);
+            if ((buildCode == 2 && currLead > P4_SAVINGS + RobotType.SOLDIER.buildCostLead) || task == 2) {
+                comm.writeBuildCode(4,0);
+                return true;
+            }
         }
         return false;
     }
@@ -239,7 +236,7 @@ public class Archon extends MyRobot {
     void tryBuild(){
         task = comm.getTask(); // check if emergency, if so we'll build soldiers
         getMines(); // update deposits detected
-        if (shouldBuildMiner()) {
+        if (currLead >= RobotType.MINER.buildCostLead && shouldBuildMiner()) {
             for (Direction dir : Direction.allDirections()) { //TODO: spawn in ideal direction
                 try {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
@@ -252,7 +249,7 @@ public class Archon extends MyRobot {
                 }
             }
         }
-        else if(shouldBuildBuilder())
+        else if(currLead >= RobotType.BUILDER.buildCostLead && shouldBuildBuilder())
         {
             for (Direction dir : Direction.allDirections())
             {
@@ -267,7 +264,7 @@ public class Archon extends MyRobot {
                 }
             }
         }
-        else if (shouldBuildSoldier()) {
+        else if (currLead >= RobotType.SOLDIER.buildCostLead && shouldBuildSoldier()) {
             for (Direction dir : Direction.allDirections()) {
                 try {
                     if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
@@ -281,7 +278,7 @@ public class Archon extends MyRobot {
                 }
             }
         }
-        else if (shouldBuildSage()) {
+        else if (currLead >= RobotType.SAGE.buildCostLead && shouldBuildSage()) {
 
         }
         else { // failed spawn, we'll try to heal

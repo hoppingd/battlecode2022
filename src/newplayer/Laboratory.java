@@ -18,7 +18,7 @@ public class Laboratory extends MyRobot {
     }
 
     void play(){
-        if (rc.getTeamGoldAmount(myTeam) < rc.getTeamGoldAmount(enemyTeam) && rc.getTeamLeadAmount(myTeam) > P4_SAVINGS) {
+        if (rc.getTeamGoldAmount(myTeam) <= rc.getTeamGoldAmount(enemyTeam) && rc.getTeamLeadAmount(myTeam) > P4_SAVINGS) {
             try{
                 if (rc.canTransmute()) {
                     rc.transmute();

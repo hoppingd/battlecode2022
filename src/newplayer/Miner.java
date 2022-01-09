@@ -5,9 +5,10 @@ import battlecode.common.*;
 public class Miner extends MyRobot {
 
     static final int MIN_LEAD_TO_MINE = 10;
-    boolean moved = false;
-
     Team myTeam, enemyTeam;
+
+    boolean moved = false;
+    boolean mined = false;
 
     public Miner(RobotController rc){
         super(rc);
@@ -22,24 +23,47 @@ public class Miner extends MyRobot {
     }
 
     void tryMine(){
-        MapLocation myLoc = rc.getLocation();
-        if (rc.canMineGold(myLoc)) {
-            try {
-                rc.mineGold(myLoc);
-                moved = true; //temp fix to keep mining
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-        }
-        else if (rc.canMineLead(myLoc)) {
-            try {
-                if (rc.senseLead(myLoc) > 1) { // if the lead is close to enemy we should deplete it
-                    rc.mineLead(myLoc);
-                    moved = true; //temp fix to keep mining
+        if (mined) return;
+        MapLocation bestMine = null;
+        int bestAmount = 0;
+        int bestGold = 0;
+        try {
+            MapLocation leadMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.actionRadiusSquared);
+            for (MapLocation mine : leadMines) {
+                int lead = rc.senseLead(mine);
+                if (lead > MIN_LEAD_TO_MINE) {
+                    if (bestMine == null) {
+                        bestMine = mine;
+                        bestAmount = lead;
+                    }
+                    if (lead > bestAmount) {
+                        bestMine = mine;
+                        bestAmount = lead;
+                    }
                 }
-            } catch (Throwable t) {
-                t.printStackTrace();
             }
+            MapLocation goldMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.actionRadiusSquared);
+            for (MapLocation mine : goldMines) {
+                int gold = rc.senseGold(mine);
+                if (gold > bestGold) {
+                    bestMine = mine;
+                    bestGold = gold;
+                }
+                // probably check for the closest deposit
+                // consider the amount of gold in the deposit
+                // consider if other bots are going there
+            }
+            if (bestMine != null) {
+                if (rc.canMineGold(bestMine)) {
+                    rc.mineGold(bestMine);
+                }
+                else if (rc.canMineLead(bestMine)) {
+                    rc.mineLead(bestMine);
+                }
+            }
+
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
     }
 
@@ -92,42 +116,37 @@ public class Miner extends MyRobot {
     MapLocation getClosestMine(){
         MapLocation myLoc = rc.getLocation();
         MapLocation bestMine = null;
-        int bestAmount = 0;
+        int bestDist = 10000;
         int bestGold = 0;
         try {
-            MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
-            for (MapLocation cell : cells) { // interlinked
-                if (!rc.canSenseLocation(cell)) continue; // needed?
-                int lead = rc.senseLead(cell);
+            MapLocation leadMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared);
+            for (MapLocation mine : leadMines) { // interlinked
+                int lead = rc.senseLead(mine);
                 if (lead > MIN_LEAD_TO_MINE) {
-                    if (!rc.canSenseRobotAtLocation(cell)) {
-                        bestMine = cell;
-                        bestAmount = lead;
+                    int dist = myLoc.distanceSquaredTo(mine);
+                    if (bestMine == null) {
+                        bestMine = mine;
+                        bestDist = dist;
                     }
-                    if (lead > bestAmount) {
-                        bestMine = cell;
-                        bestAmount = lead;
+                    if (dist < bestDist) {
+                        bestMine = mine;
+                        bestDist = dist;
                     }
                     // probably check for the closest deposit
                     // consider the amount of lead in the deposit
                     // consider if other bots are going there
                 }
-                int gold = rc.senseGold(cell);
+            }
+            MapLocation goldMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared);
+            for (MapLocation mine : goldMines) { // interlinked
+                int gold = rc.senseGold(mine);
                 if (gold > bestGold) {
-                    bestMine = cell;
+                    bestMine = mine;
                     bestGold = gold;
-                    // if there is gold, for now we will go for the largest deposit
                 }
-                // if the cell hasn't been explored, get the rubble info. if we know the map's symmetry, we can update
-                // the matching cell as well
-                /*
-                if ((map[cell.x][cell.y] & EXPLORE_BIT) != EXPLORE_BIT) {
-                    map[cell.x][cell.y] = rc.senseRubble(cell);
-                }
-                else { // set to explored
-                    map[cell.x][cell.y] |= EXPLORE_BIT;
-                }
-                */
+                // probably check for the closest deposit
+                // consider the amount of gold in the deposit
+                // consider if other bots are going there
             }
         } catch (Throwable t) {
             t.printStackTrace();
