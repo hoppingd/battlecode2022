@@ -12,6 +12,7 @@ public class Archon extends MyRobot {
     static final int P3_START = 400;
     static final int P4_START = 600;
     static final int P4_SAVINGS = 1000;
+    static final int HIGH_LEAD_THRESHOLD = 15; // this is solely based on deposits, may want to update
 
     int H, W;
     Team myTeam, enemyTeam;
@@ -106,7 +107,7 @@ public class Archon extends MyRobot {
             if (!arrived) {
                 return true; // archon hasn't started voyaging, build miner
             }
-            else if (soldiersBuilt < 1) {
+            else if (depositsDetected <= HIGH_LEAD_THRESHOLD && soldiersBuilt < 1) {
                 return false; // hq build scout
             }
             else if (task == 2) {
@@ -156,6 +157,7 @@ public class Archon extends MyRobot {
     boolean shouldBuildBuilder() {
         // PHASE 1
         if (currRound < P2_START) {
+            if (depositsDetected > HIGH_LEAD_THRESHOLD && soldiersBuilt > 0 && builderCount < 1) return true; // on high lead maps we will build watchtowers to try and stop soldiers
             return false;
         }
         // PHASE 2
@@ -188,7 +190,7 @@ public class Archon extends MyRobot {
     boolean shouldBuildSoldier() {
         // PHASE 1
         if (currRound < P2_START) {
-            if (currLead > comm.numArchons * RobotType.MINER.buildCostLead) return true;
+            if (currLead > comm.numArchons * RobotType.MINER.buildCostLead && depositsDetected < HIGH_LEAD_THRESHOLD) return true;
             if (task == 2) return true;
             if (soldiersBuilt < 1) {
                 return arrived;

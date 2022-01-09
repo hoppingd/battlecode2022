@@ -7,12 +7,16 @@ import java.awt.*;
 public class Builder extends MyRobot {
 
     static final int P4_START = 600;
-    boolean moved = false;
+    static final int P3_START = 400;
     int watchCount = 0;
+    int watchRepairedCount = 0;
     int H, W;
     Team myTeam, enemyTeam;
     int task = 0;
     MapLocation nearestCorner;
+
+    boolean moved = false;
+    int currRound = 0;
 
     public Builder(RobotController rc){
         super(rc);
@@ -25,6 +29,7 @@ public class Builder extends MyRobot {
     }
 
     public void play(){
+        currRound = rc.getRoundNum();
         task = comm.getTask();
         moved = false;
         if(!tryRepairPrototype()) { //for finishing tower
@@ -52,6 +57,10 @@ public class Builder extends MyRobot {
         try {
             if (bestRepair != null) {
                 rc.repair(bestRepair);
+                RobotInfo repairTarget = rc.senseRobotAtLocation(bestRepair);
+                if (repairTarget.getHealth() == repairTarget.getType().health) {
+                    watchRepairedCount++;
+                }
                 return true;
             }
         } catch (Throwable t) {
@@ -61,7 +70,7 @@ public class Builder extends MyRobot {
     }
 
     void tryDisintegrate() {
-        if (rc.getRoundNum() < P4_START || watchCount > 0) {
+        if (currRound > P3_START && (currRound < P4_START || watchRepairedCount > 0)) {
             MapLocation myLoc = rc.getLocation();
             try {
                 if (rc.senseLead(myLoc) == 0 && validProspect(myLoc)) {
@@ -73,7 +82,21 @@ public class Builder extends MyRobot {
         }
     }
     void tryBuild(){
-        if(!comm.labIsBuilt()) {
+        if (currRound < P3_START) { // we built a miner early, so must be high lead map. we'll defend with watchtowers
+            for (Direction dir : Direction.allDirections())
+            {
+                try {
+                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && validTowerLoc(rc.getLocation().add(dir))){
+                        watchCount++;
+                        rc.buildRobot(RobotType.WATCHTOWER, dir); // we spawn builders based on num needed
+                        break;
+                    }
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+        }
+        else if(!comm.labIsBuilt()) {
             if (rc.getLocation().isAdjacentTo(nearestCorner) && rc.getTeamLeadAmount(myTeam) > RobotType.LABORATORY.buildCostLead) {
                 Direction dir = rc.getLocation().directionTo(nearestCorner);
                 try {
@@ -105,10 +128,10 @@ public class Builder extends MyRobot {
 
     void tryMove(){
         MapLocation target = null;
-        if (rc.getRoundNum() < P4_START && task !=2) {
+        if (currRound < P4_START && currRound >= P3_START && task !=2) {
             target = getMineProspect();
         }
-        else if (!comm.labIsBuilt()) {
+        else if (!comm.labIsBuilt() && currRound >= P3_START) {
             if (!rc.getLocation().isAdjacentTo(nearestCorner)) target = nearestCorner;
         }
         if (target == null) target = getHurtRobot();
@@ -128,7 +151,7 @@ public class Builder extends MyRobot {
             MapLocation allyLoc = r.getLocation();
             if (rc.canRepair(allyLoc)){
                 int health = r.getHealth();
-                if (health < r.getType().health && health > bestHealth) {
+                if (health < r.getType().getMaxHealth(r.level) && health > bestHealth) {
                     bestHealth = health;
                     bestRepair = allyLoc;
                 }
