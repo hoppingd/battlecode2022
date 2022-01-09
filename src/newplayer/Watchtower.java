@@ -7,6 +7,7 @@ import java.awt.*;
 public class Watchtower extends MyRobot {
 
     static final int MAX_CONGESTION = 5;
+    static final int P3_START = 400;
     Team myTeam, enemyTeam;
     int H, W;
     MapLocation nearestCorner;
@@ -48,9 +49,10 @@ public class Watchtower extends MyRobot {
     }
 
     boolean shouldGoPortable() {
-        return rc.senseNearbyRobots(2, myTeam).length > MAX_CONGESTION && isSafe();
+        return rc.senseNearbyRobots(2, myTeam).length > MAX_CONGESTION && isSafe() && rc.getRoundNum() > P3_START;
     }
 
+    //TODO: consider rubble?
     boolean shouldGoTurret() {
         return validTowerLoc(rc.getLocation()) || !isSafe();
     }
@@ -64,16 +66,21 @@ public class Watchtower extends MyRobot {
         return true;
     }
 
-    void tryAttack() { // will shoot closest target
-        MapLocation myLoc = rc.getLocation();
+    void tryAttack() { // shoot lowest health with dist to hq as tiebreaker
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.WATCHTOWER.actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
+        int bestHealth = 10000;
         int bestDist = 10000;
         for (RobotInfo r : enemies) {
             MapLocation enemyLoc = r.getLocation();
             if (rc.canAttack(enemyLoc)) {
-                int dist = myLoc.distanceSquaredTo(enemyLoc);
-                if (dist < bestDist) {
+                int dist = comm.HQloc.distanceSquaredTo(enemyLoc);
+                if (r.health < bestHealth) {
+                    bestHealth = r.health;
+                    bestDist = dist;
+                    bestLoc = enemyLoc;
+                }
+                else if (r.health == bestHealth && dist < bestDist) {
                     bestDist = dist;
                     bestLoc = enemyLoc;
                 }
@@ -95,6 +102,7 @@ public class Watchtower extends MyRobot {
         return d1 >= comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H*W) && rc.senseNearbyRobots(loc, 2, rc.getTeam()).length < 3;
     }
 
+    //TODO: consider rubble?
     MapLocation getFreeSpace() {
         MapLocation myLoc = rc.getLocation();
         MapLocation target = null;

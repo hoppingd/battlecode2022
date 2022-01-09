@@ -5,32 +5,38 @@
 // [4] Archon 2: ARCHON_SET yyyy yyxx xxxx
 // [5] Archon 3: ARCHON_SET yyyy yyxx xxxx
 // [6] Archon 4: ARCHON_SET yyyy yyxx xxxx
-// [7] EnemyArchon 1: ARCHON_SET yyyy yyxx xxxx
-// [8] EnemyArchon 2: ARCHON_SET yyyy yyxx xxxx
-// [9] EnemyArchon 3: ARCHON_SET yyyy yyxx xxxx
-// [10] EnemyArchon 4: ARCHON_SET yyyy yyxx xxxx
+// [7] EnemyArchon 1: ARCHON_SET ID(6bits) yyyy yyxx xxxx
+// [8] EnemyArchon 2: ARCHON_SET ID(6bits) yyyy yyxx xxxx
+// [9] EnemyArchon 3: ARCHON_SET ID(6bits) yyyy yyxx xxxx
+// [10] EnemyArchon 4: ARCHON_SET ID(6bits) yyyy yyxx xxxx
 // [11] Lab is built : IS_BUILT
 // [12] Build code P1: CODE
 // [13] Build code P2: CODE
 // [14] Build code P3: CODE
 // [15] Build code P4: CODE
 // [16] Emergency location: yyyy yyxx xxxx
+// [17] EnemyArchonID: ID
+// [18] EnemyArchonID: ID
+// [19] EnemyArchonID: ID
+// [20] EnemyArchonID: ID
 
 package newplayer;
 
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
+import battlecode.common.RobotInfo;
 
 public class Communication {
 
     final static int ALLY_ARCHON_ARRAY_START = 3;
     final static int ENEMY_ARCHON_ARRAY_START = 7;
     final static int BUILD_CODE_ARRAY_START = 12;
+    final static int ENEMY_ARCHON_TO_ID = 10; // id array start - enemy archon array start
     final static int NUM_PHASES = 4;
 
     RobotController rc;
     MapLocation HQloc = null;
-    MapLocation enemyHQloc = null; // for now, we only keep track of the enemy archon that matches our HQ
+    MapLocation HQopposite = null;
     int numArchons;
     int H, W;
     MapLocation[] allyArchons;
@@ -96,14 +102,17 @@ public class Communication {
         return true;
     }
 
+    //TODO: clean up
     //write enemy archon location. should check for ids and update if changed location. can also update if one is destroyed;
-    void writeEnemyArchonLocation(MapLocation loc) {
+    void writeEnemyArchonLocation(RobotInfo r) {
         try {
             for (int i = ENEMY_ARCHON_ARRAY_START; i < ENEMY_ARCHON_ARRAY_START + numArchons; i++) {
                 boolean ARCHON_SET = (rc.readSharedArray(i) >> 12) == 1; // ARCHON_SET yyyy yyxx xxxx
-                if (!ARCHON_SET) {
-                    int code = (1 << 12) + (loc.y << 6) + loc.x;
-                    System.err.println("wrote enemy archon at index " + i + " location " + loc);
+                boolean SAME_ID = r.ID == rc.readSharedArray(rc.readSharedArray(i + ENEMY_ARCHON_TO_ID));
+                // annoying possible bug here where id is 0 so it seems like the robot was already discovered. prob need an id set bit
+                if (!ARCHON_SET || SAME_ID) {
+                    int code = (1 << 12) + (r.location.y << 6) + r.location.x;
+                    System.err.println("wrote enemy archon at index " + i + " location " + new MapLocation(r.location.x, r.location.y));
                     rc.writeSharedArray(i, code);
                     return;
                 }
@@ -169,6 +178,7 @@ public class Communication {
             int x = HQ & 0x3F;
             int y = (HQ >> 6) & 0x3F;
             HQloc = new MapLocation(x,y);
+            HQopposite = getHQOpposite();
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -184,6 +194,7 @@ public class Communication {
             int code = (1 << 12) + (myLoc.y << 6) + myLoc.x;
             rc.writeSharedArray(0, code);
             HQloc = myLoc;
+            HQopposite = getHQOpposite();
         } catch (Throwable t) {
             t.printStackTrace();
         }

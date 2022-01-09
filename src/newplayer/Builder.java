@@ -5,9 +5,20 @@ import battlecode.common.*;
 import java.awt.*;
 
 public class Builder extends MyRobot {
+    static final Direction[] spawnDirections = {
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
 
-    static final int P4_START = 600;
     static final int P3_START = 400;
+    static final int P4_START = 500;
+
     int watchCount = 0;
     int watchRepairedCount = 0;
     int H, W;
@@ -17,6 +28,7 @@ public class Builder extends MyRobot {
 
     boolean moved = false;
     int currRound = 0;
+    boolean earlyBuilder = true;
 
     public Builder(RobotController rc){
         super(rc);
@@ -31,6 +43,7 @@ public class Builder extends MyRobot {
     public void play(){
         currRound = rc.getRoundNum();
         task = comm.getTask();
+        earlyBuilder = currRound < P3_START;
         moved = false;
         if(!tryRepairPrototype()) { //for finishing tower
             tryBuild();
@@ -70,7 +83,7 @@ public class Builder extends MyRobot {
     }
 
     void tryDisintegrate() {
-        if (currRound > P3_START && (currRound < P4_START || watchRepairedCount > 0)) {
+        if (!earlyBuilder && (currRound < P4_START || watchRepairedCount > 0)) {
             MapLocation myLoc = rc.getLocation();
             try {
                 if (rc.senseLead(myLoc) == 0 && validProspect(myLoc)) {
@@ -82,18 +95,31 @@ public class Builder extends MyRobot {
         }
     }
     void tryBuild(){
-        if (currRound < P3_START) { // we built a miner early, so must be high lead map. we'll defend with watchtowers
-            for (Direction dir : Direction.allDirections())
-            {
-                try {
-                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && validTowerLoc(rc.getLocation().add(dir))){
-                        watchCount++;
-                        rc.buildRobot(RobotType.WATCHTOWER, dir); // we spawn builders based on num needed
-                        break;
+        if (earlyBuilder) { // we built a miner early, so must be high lead map. we'll defend with watchtowers
+            Direction bestDir = null;
+            int bestRubble = GameConstants.MAX_RUBBLE;
+            try {
+                for (Direction dir : spawnDirections) {
+                    MapLocation prospect = rc.getLocation().add(dir);
+                    int d1 = prospect.distanceSquaredTo(nearestCorner);
+                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H * W)) {
+                        int r = rc.senseRubble(prospect);
+                        if (bestDir == null) {
+                            bestDir = dir;
+                            bestRubble = r;
+                        }
+                        else if (r < bestRubble) {
+                            bestDir = dir;
+                            bestRubble = r;
+                        }
                     }
-                } catch (Throwable t) {
-                    t.printStackTrace();
                 }
+                if (bestDir != null) {
+                    rc.buildRobot(RobotType.WATCHTOWER, bestDir);
+                    watchCount++;
+                }
+            } catch (Throwable t) {
+                t.printStackTrace();
             }
         }
         else if(!comm.labIsBuilt()) {
@@ -111,35 +137,54 @@ public class Builder extends MyRobot {
         }
         else if(watchCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.WATCHTOWER.buildCostLead && rc.getRoundNum() >= P4_START)
         {
-            for (Direction dir : Direction.allDirections())
-            {
-                try {
-                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && validTowerLoc(rc.getLocation().add(dir))){
-                        watchCount++;
-                        rc.buildRobot(RobotType.WATCHTOWER, dir); // we spawn builders based on num needed
-                        break;
+            Direction bestDir = null;
+            int bestRubble = GameConstants.MAX_RUBBLE;
+            try {
+                for (Direction dir : spawnDirections) {
+                    MapLocation prospect = rc.getLocation().add(dir);
+                    int d1 = prospect.distanceSquaredTo(nearestCorner);
+                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H * W)) {
+                        int r = rc.senseRubble(prospect);
+                        if (bestDir == null) {
+                            bestDir = dir;
+                            bestRubble = r;
+                        }
+                        else if (r < bestRubble) {
+                            bestDir = dir;
+                            bestRubble = r;
+                        }
                     }
-                } catch (Throwable t) {
-                    t.printStackTrace();
                 }
+                if (bestDir != null) {
+                    rc.buildRobot(RobotType.WATCHTOWER, bestDir);
+                    watchCount++;
+                }
+            } catch (Throwable t) {
+                t.printStackTrace();
             }
         }
     }
 
     void tryMove(){
         MapLocation target = null;
-        if (currRound < P4_START && currRound >= P3_START && task !=2) {
+        if (currRound < P4_START && !earlyBuilder && task !=2) {
             target = getMineProspect();
         }
-        else if (!comm.labIsBuilt() && currRound >= P3_START) {
+        else if (!comm.labIsBuilt() && !earlyBuilder) {
             if (!rc.getLocation().isAdjacentTo(nearestCorner)) target = nearestCorner;
         }
         if (target == null) target = getHurtRobot();
+        //check to see if in danger
         if (target != null) {
             bfs.move(target);
         }
         else {
-            bfs.move(explore.getExploreTarget());
+            if (earlyBuilder) {
+                bfs.move(getEarlyTowerLoc());
+            }
+            else {
+                bfs.move(explore.getExploreTarget()); // TODO: if early builder be smarter with movement and finding ideal tower locations
+            }
         }
     }
 
@@ -202,6 +247,26 @@ public class Builder extends MyRobot {
                 if (rc.senseLead(cell) > 0) break;
                 int dist = myLoc.distanceSquaredTo(cell);
                 if (dist < bestDist && validProspect(cell)) { // closest spot with no lead and not too close to corner or hq
+                    bestDist = dist;
+                    target = cell;
+                }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return target;
+    }
+
+    MapLocation getEarlyTowerLoc() {
+        MapLocation myLoc = rc.getLocation();
+        MapLocation target = null;
+        int bestDist = 10000;
+        try {
+            MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
+            for (MapLocation cell : cells){
+                int dist = myLoc.distanceSquaredTo(cell);
+                int d1 = cell.distanceSquaredTo(nearestCorner);
+                if (dist < bestDist && d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H*W)) { // validtowerloc disregarding spacing. we need to live!
                     bestDist = dist;
                     target = cell;
                 }

@@ -3,16 +3,26 @@ package newplayer;
 import battlecode.common.*;
 
 public class Archon extends MyRobot {
+    static final Direction[] spawnDirections = {
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
     //P1: build scout, miners, and voyage
     //P2: spam soldiers to stop rush
     //P3: disintegrate builders to start lead engine
     //P4: start stockpiling lead for watchtowers and laboratory
     static final int P1_MINERS = 6;
     static final int P2_START = 80;
-    static final int P3_START = 400;
-    static final int P4_START = 600;
+    static final int P3_START = 400; //survived rush, hopefully
+    static final int P4_START = 500;
     static final int P4_SAVINGS = 1000;
-    static final int HIGH_LEAD_THRESHOLD = 15; // this is solely based on deposits, may want to update
+    static final int HIGH_LEAD_THRESHOLD = 5; // this is solely based on deposits, may want to update
 
     int H, W;
     Team myTeam, enemyTeam;
@@ -77,6 +87,7 @@ public class Archon extends MyRobot {
             if (r.getType() == RobotType.SOLDIER) {
                 comm.setEmergencyLoc(r.getLocation());
                 comm.setTask(2);
+                return;
             }
         }
         comm.setTask(1);
@@ -114,6 +125,9 @@ public class Archon extends MyRobot {
                 return false; // emergency
             }
             else if (minersBuilt < P1_MINERS - comm.numArchons) { // hq build miners
+                return true;
+            }
+            else if (builderCount > minersBuilt) { // lots of early builders, so we'll need lots of lead
                 return true;
             }
             return false;
@@ -157,7 +171,7 @@ public class Archon extends MyRobot {
     boolean shouldBuildBuilder() {
         // PHASE 1
         if (currRound < P2_START) {
-            if (depositsDetected > HIGH_LEAD_THRESHOLD && soldiersBuilt > 0 && builderCount < 1) return true; // on high lead maps we will build watchtowers to try and stop soldiers
+            if (depositsDetected > HIGH_LEAD_THRESHOLD && soldiersBuilt > 0 && builderCount < Math.ceil((depositsDetected - HIGH_LEAD_THRESHOLD)/25.0)) return true; // on high lead maps we will build watchtowers to try and stop soldiers
             return false;
         }
         // PHASE 2
@@ -242,7 +256,7 @@ public class Archon extends MyRobot {
         getMines(); // update deposits detected
         MapLocation myLoc = rc.getLocation();
         if (currLead >= RobotType.MINER.buildCostLead && shouldBuildMiner()) {
-            for (Direction dir : Direction.allDirections()) { //TODO: spawn in ideal direction (see soldier), also don't need center
+            for (Direction dir : spawnDirections) { //TODO: clean up deciding bestDir
                 try {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
                         rc.buildRobot(RobotType.MINER, dir); // we simply spam miners
@@ -256,28 +270,36 @@ public class Archon extends MyRobot {
         }
         else if(currLead >= RobotType.BUILDER.buildCostLead && shouldBuildBuilder())
         {
-            for (Direction dir : Direction.allDirections())
-            {
-                try {
-                    if (rc.canBuildRobot(RobotType.BUILDER, dir)){
-                        rc.buildRobot(RobotType.BUILDER, dir); // we spawn builders based on num needed
-                        builderCount++;
-                        break;
+            Direction bestDir = null;
+            try {
+                for (Direction dir : spawnDirections) {
+                    if (rc.canBuildRobot(RobotType.BUILDER, dir)) {
+                        if (bestDir == null) {
+                            bestDir = dir;
+                        }
+                        else if (myLoc.add(dir).distanceSquaredTo(comm.HQopposite) < myLoc.add(bestDir).distanceSquaredTo(comm.HQopposite)) {
+                            bestDir = dir;
+                        }
                     }
-                } catch (Throwable t) {
-                    t.printStackTrace();
                 }
+                if (bestDir != null) {
+                    rc.buildRobot(RobotType.BUILDER, bestDir);
+                    builderCount++;
+                }
+            } catch (Throwable t) {
+                t.printStackTrace();
             }
+
         }
         else if (currLead >= RobotType.SOLDIER.buildCostLead && shouldBuildSoldier()) {
             Direction bestDir = null;
             try {
-                for (Direction dir : Direction.allDirections()) {
+                for (Direction dir : spawnDirections) {
                     if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
                         if (bestDir == null) {
                             bestDir = dir;
                         }
-                        else if (myLoc.add(dir).distanceSquaredTo(comm.getHQOpposite()) < myLoc.add(bestDir).distanceSquaredTo(comm.getHQOpposite())) {
+                        else if (myLoc.add(dir).distanceSquaredTo(comm.HQopposite) < myLoc.add(bestDir).distanceSquaredTo(comm.HQopposite)) {
                             bestDir = dir;
                         }
                     }

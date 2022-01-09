@@ -4,6 +4,7 @@ import battlecode.common.*;
 
 public class Soldier extends MyRobot {
 
+    static final int LATTICE_CONGESTION = 0;
     SoldierScout scout;
     boolean moved = false;
     int birthday;
@@ -47,16 +48,21 @@ public class Soldier extends MyRobot {
         return bestLoc;
     }
 
-    void tryAttack(){ // will shoot closest target
-        MapLocation myLoc = rc.getLocation();
+    void tryAttack(){ // shoot lowest health with dist as tiebreaker
         RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
+        int bestHealth = 10000;
         int bestDist = 10000;
-        for (RobotInfo r : enemies){
+        for (RobotInfo r : enemies) {
             MapLocation enemyLoc = r.getLocation();
-            if (rc.canAttack(enemyLoc)){
-                int dist = myLoc.distanceSquaredTo(enemyLoc);
-                if (dist < bestDist) {
+            if (rc.canAttack(enemyLoc)) {
+                int dist = comm.HQloc.distanceSquaredTo(enemyLoc);
+                if (r.health < bestHealth) {
+                    bestHealth = r.health;
+                    bestDist = dist;
+                    bestLoc = enemyLoc;
+                }
+                else if (r.health == bestHealth && dist < bestDist) {
                     bestDist = dist;
                     bestLoc = enemyLoc;
                 }
@@ -103,7 +109,8 @@ public class Soldier extends MyRobot {
                     return;
 
                  */
-                if (rc.senseNearbyRobots(rc.getLocation(), 1, rc.getTeam()).length == 0) { // some spacing condition
+                MapLocation myLoc = rc.getLocation();
+                if (rc.senseNearbyRobots(myLoc, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(myLoc)) { // some spacing condition
                     return;
                 }
                 MapLocation loc = getFreeSpace();
@@ -166,10 +173,11 @@ public class Soldier extends MyRobot {
             MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells) { // interlinked
                 if (!rc.canSenseLocation(cell)) continue; // needed?
-                if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length == 0 && validLattice(cell)) { // some spacing condition
+                if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(cell)) { // some spacing condition
                     if (target == null) {
                         target = cell;
                     }
+                    // closer than target and further from corner than me
                     else if (cell.distanceSquaredTo(myLoc) < target.distanceSquaredTo(myLoc))
                     { // should try to build lattice away from wall/toward enemy
                         target = cell;

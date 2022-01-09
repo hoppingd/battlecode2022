@@ -63,7 +63,7 @@ public class SoldierScout {
                 RobotInfo r = rc.senseRobotAtLocation(prospect);
                 if (r.getType() == RobotType.ARCHON) {
                     if (r.getTeam() == enemyTeam) {
-                        comm.writeEnemyArchonLocation(prospect);
+                        comm.writeEnemyArchonLocation(r);
                         // if both symmetries are false at this point, must be rotational symmetry
                     }
                     else {

@@ -8,7 +8,7 @@ import battlecode.common.Team;
 public class Laboratory extends MyRobot {
 
     static final int P4_SAVINGS = 1000;
-
+    static final int OBSCENELY_RICH = 2000;
     Team myTeam, enemyTeam;
 
     Laboratory(RobotController rc){
@@ -25,7 +25,7 @@ public class Laboratory extends MyRobot {
     boolean transmute() {
         int currLead = rc.getTeamLeadAmount(myTeam);
         // need to win
-        if (rc.getTeamGoldAmount(myTeam) <= rc.getTeamGoldAmount(enemyTeam) && currLead > P4_SAVINGS) {
+        if ((rc.getTeamGoldAmount(myTeam) <= rc.getTeamGoldAmount(enemyTeam) && currLead > P4_SAVINGS) || currLead > OBSCENELY_RICH) {
             try {
                 if (rc.canTransmute()) {
                     rc.transmute();
