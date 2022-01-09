@@ -307,7 +307,9 @@ public class Archon extends MyRobot {
                 if (bestDir != null) {
                     rc.buildRobot(RobotType.SOLDIER, bestDir); // we simply spam soldiers
                     soldiersBuilt++;
-                    comm.setTask(1); // for now we only build one scout
+                    if (task == 0) {
+                        comm.setTask(1); // for now we only build one scout
+                    }
                 }
             } catch (Throwable t) {
                 t.printStackTrace();
