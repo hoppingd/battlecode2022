@@ -14,6 +14,7 @@ public class Miner extends MyRobot {
         super(rc);
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
+        comm.readHQloc();
     }
 
     public void play(){
@@ -123,6 +124,7 @@ public class Miner extends MyRobot {
             for (MapLocation mine : leadMines) { // interlinked
                 int lead = rc.senseLead(mine);
                 if (lead > MIN_LEAD_TO_MINE) {
+                    if (mine.isAdjacentTo(comm.HQloc) || rc.senseNearbyRobots(mine, 2, myTeam).length > 3) continue;
                     int dist = myLoc.distanceSquaredTo(mine);
                     if (bestMine == null) {
                         bestMine = mine;

@@ -109,7 +109,7 @@ public class Builder extends MyRobot {
             target = getMineProspect();
         }
         else if (!comm.labIsBuilt()) {
-            target = nearestCorner;
+            if (!rc.getLocation().isAdjacentTo(nearestCorner)) target = nearestCorner;
         }
         if (target == null) target = getHurtRobot();
         if (target != null) {
@@ -163,7 +163,7 @@ public class Builder extends MyRobot {
     boolean validTowerLoc(MapLocation loc) {
         RobotInfo[] robots = rc.senseNearbyRobots(loc,1, myTeam);
         for (RobotInfo r : robots) {
-            if (r.getType() == RobotType.WATCHTOWER) return false;
+            if (r.getType() == RobotType.WATCHTOWER && r.getMode() == RobotMode.TURRET) return false;
         }
         int d1 = loc.distanceSquaredTo(nearestCorner);
         return d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H*W);
