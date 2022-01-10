@@ -42,7 +42,7 @@ public class Watchtower extends MyRobot {
 
     void transform() {
         try {
-            if (rc.canTransform()) rc.transform();
+            if (rc.isTransformReady()) rc.transform();
         } catch (Throwable t) {
             t.printStackTrace();
         }

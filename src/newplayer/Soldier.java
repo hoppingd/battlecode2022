@@ -30,8 +30,10 @@ public class Soldier extends MyRobot {
         moved = false;
         tryAttack();
         tryMove();
+        tryAttack();
     }
 
+    // TODO: implement a function to stay at max range from soldiers and flee from losing fights, pursuing winning fights
     MapLocation enemyInSight(){ // soldiers will move toward enemies
         MapLocation myLoc = rc.getLocation();
         RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
@@ -166,7 +168,7 @@ public class Soldier extends MyRobot {
         return d1 > Math.sqrt(Math.sqrt(H*W)) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner);
     }
 
-    MapLocation getFreeSpace(){ // soldiers will find closest free space
+    MapLocation getFreeSpace() { // soldiers will find closest free space
         MapLocation myLoc = rc.getLocation();
         MapLocation target = null;
         try {

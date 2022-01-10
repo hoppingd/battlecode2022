@@ -142,8 +142,7 @@ public class Builder extends MyRobot {
             try {
                 for (Direction dir : spawnDirections) {
                     MapLocation prospect = rc.getLocation().add(dir);
-                    int d1 = prospect.distanceSquaredTo(nearestCorner);
-                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H * W)) {
+                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && validTowerLoc(prospect)) {
                         int r = rc.senseRubble(prospect);
                         if (bestDir == null) {
                             bestDir = dir;
