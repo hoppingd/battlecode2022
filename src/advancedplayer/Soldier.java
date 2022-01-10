@@ -102,7 +102,7 @@ public class Soldier extends MyRobot {
                  */
                 MapLocation target = moveInCombat();
                 if (target != null) {
-                    bfs.move(comm.HQloc);
+                    bfs.move(moveInCombat());
                     return;
                 }
                 MapLocation myLoc = rc.getLocation();
