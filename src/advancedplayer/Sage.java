@@ -5,7 +5,7 @@ import battlecode.common.*;
 public class Sage extends MyRobot {
 
     static final int LATTICE_CONGESTION = 0;
-    static final int ALLY_FORCES_RANGE = 25;
+    static final int ALLY_FORCES_RANGE = 29;
 
     boolean moved = false;
     int birthday;

@@ -16,7 +16,7 @@ public class Builder extends MyRobot {
             Direction.NORTHWEST,
     };
 
-    static final int ALLY_FORCES_RANGE = 25;
+    static final int ALLY_FORCES_RANGE = 29;
 
     int watchCount = 0;
     int watchRepairedCount = 0;

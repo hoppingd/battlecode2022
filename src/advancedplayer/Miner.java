@@ -7,7 +7,7 @@ public class Miner extends MyRobot {
 
 
     static final int MIN_LEAD_TO_MINE = 6;
-    static final int ALLY_FORCES_RANGE = 25;
+    static final int ALLY_FORCES_RANGE = 29;
 
     Team myTeam, enemyTeam;
 

@@ -7,7 +7,7 @@ import java.awt.*;
 public class Watchtower extends MyRobot {
 
     static final int MAX_CONGESTION = 5;
-    static final int ALLY_FORCES_RANGE = 25;
+    static final int ALLY_FORCES_RANGE = 29;
 
     Team myTeam, enemyTeam;
     int H, W;
