@@ -102,7 +102,7 @@ public class Builder extends MyRobot {
                 for (Direction dir : spawnDirections) {
                     MapLocation prospect = rc.getLocation().add(dir);
                     int d1 = prospect.distanceSquaredTo(nearestCorner);
-                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H * W)) {
+                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H * W)) { //TODO: check if toeer is in unsafe location
                         int r = rc.senseRubble(prospect);
                         if (bestDir == null) {
                             bestDir = dir;
@@ -278,6 +278,7 @@ public class Builder extends MyRobot {
         for (RobotInfo r : robots) {
             if (r.getType() == RobotType.WATCHTOWER && r.getMode() == RobotMode.TURRET) return false;
         }
+        //
         int d1 = loc.distanceSquaredTo(nearestCorner);
         return d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H*W);
     }
