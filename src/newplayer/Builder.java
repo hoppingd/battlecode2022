@@ -16,8 +16,7 @@ public class Builder extends MyRobot {
             Direction.NORTHWEST,
     };
 
-    static final int P3_START = 400;
-    static final int P4_START = 500;
+    static final int ALLY_FORCES_RANGE = 25;
 
     int watchCount = 0;
     int watchRepairedCount = 0;
@@ -43,7 +42,7 @@ public class Builder extends MyRobot {
     public void play(){
         currRound = rc.getRoundNum();
         task = comm.getTask();
-        earlyBuilder = currRound < P3_START;
+        earlyBuilder = currRound < comm.P3_START;
         moved = false;
         if(!tryRepairPrototype()) { //for finishing tower
             tryBuild();
@@ -83,7 +82,7 @@ public class Builder extends MyRobot {
     }
 
     void tryDisintegrate() {
-        if (!earlyBuilder && (currRound < P4_START || watchRepairedCount > 0)) {
+        if (!earlyBuilder && (currRound < comm.P4_START || watchRepairedCount > 0)) {
             MapLocation myLoc = rc.getLocation();
             try {
                 if (rc.senseLead(myLoc) == 0 && validProspect(myLoc)) {
@@ -124,6 +123,18 @@ public class Builder extends MyRobot {
         }
         else if(!comm.labIsBuilt()) {
             if (rc.getLocation().isAdjacentTo(nearestCorner) && rc.getTeamLeadAmount(myTeam) > RobotType.LABORATORY.buildCostLead) {
+                if (comm.HQloc == nearestCorner) { // edge case if archon is in corner
+                    for (Direction dir : spawnDirections) {
+                        try {
+                            if (rc.canBuildRobot(RobotType.LABORATORY, dir)){
+                                rc.buildRobot(RobotType.LABORATORY, dir);
+                                comm.setLabBuilt();
+                            }
+                        } catch (Throwable t) {
+                            t.printStackTrace();
+                        }
+                    }
+                }
                 Direction dir = rc.getLocation().directionTo(nearestCorner);
                 try {
                     if (rc.canBuildRobot(RobotType.LABORATORY, dir)){
@@ -135,7 +146,7 @@ public class Builder extends MyRobot {
                 }
             }
         }
-        else if(watchCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.WATCHTOWER.buildCostLead && rc.getRoundNum() >= P4_START)
+        else if(watchCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.WATCHTOWER.buildCostLead && rc.getRoundNum() >= comm.P4_START)
         {
             Direction bestDir = null;
             int bestRubble = GameConstants.MAX_RUBBLE;
@@ -166,10 +177,14 @@ public class Builder extends MyRobot {
 
     void tryMove(){
         MapLocation target = null;
-        if (currRound < P4_START && !earlyBuilder && task !=2) {
+        if (task !=2 && ((currRound < comm.P4_START && !earlyBuilder) || (currRound > comm.P4_START && watchRepairedCount > 0 && !earlyBuilder))) {
             target = getMineProspect();
         }
-        else if (!comm.labIsBuilt() && !earlyBuilder) {
+        else {
+            target = moveInCombat();
+        }
+
+        if (target == null && !comm.labIsBuilt() && !earlyBuilder) {
             if (!rc.getLocation().isAdjacentTo(nearestCorner)) target = nearestCorner;
         }
         if (target == null) target = getHurtRobot();
@@ -185,6 +200,34 @@ public class Builder extends MyRobot {
                 bfs.move(explore.getExploreTarget()); // TODO: if early builder be smarter with movement and finding ideal tower locations
             }
         }
+    }
+
+    //TODO: improve
+    MapLocation moveInCombat() {
+        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
+        for (RobotInfo enemy : enemies) {
+            // only consider offensive units
+            if (!enemy.type.canAttack()) continue;
+            //TODO: only consider combat units, with more weight given to watchtowers
+            int myForcesCount = 0;
+            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, ALLY_FORCES_RANGE, myTeam);
+            for (RobotInfo r : myForces) {
+                if (r.type.canAttack()) {
+                    myForcesCount += r.health;
+                }
+            }
+            int enemyForcesCount = enemy.health;
+            RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
+            for (RobotInfo r : enemyForces) {
+                if (r.type.canAttack()) {
+                    enemyForcesCount += r.health;
+                }
+            }
+            if (myForcesCount < enemyForcesCount) {
+                return comm.HQloc; //for now we naively path home
+            }
+        }
+        return null;
     }
 
     void tryRepairBuilding() {
@@ -259,13 +302,15 @@ public class Builder extends MyRobot {
     MapLocation getEarlyTowerLoc() {
         MapLocation myLoc = rc.getLocation();
         MapLocation target = null;
+        int d2 = comm.HQloc.distanceSquaredTo(nearestCorner);
+        double d3 = Math.sqrt(H*W);
         int bestDist = 10000;
         try {
             MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells){
-                int dist = myLoc.distanceSquaredTo(cell);
+                int dist = cell.distanceSquaredTo(comm.HQloc);
                 int d1 = cell.distanceSquaredTo(nearestCorner);
-                if (dist < bestDist && d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H*W)) { // validtowerloc disregarding spacing. we need to live!
+                if (dist < bestDist && d1 > d2 && d1 > d3) { // validtowerloc disregarding spacing. we need to live!
                     bestDist = dist;
                     target = cell;
                 }

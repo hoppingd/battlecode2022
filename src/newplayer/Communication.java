@@ -1,5 +1,5 @@
 // [0] Pathing to HQ with flag: HQ_DECIDED yyyy yyxx xxxx
-// [1] Task: 0 = scout, 1 = lattice, 2 = emergency
+// [1] Task: 0 = scout, 1 = lattice, 2 = emergency 3 = explore, 4 = crunch
 // [2] Symmetry: MIR HOR VERT INITIAL_SYMMETRY
 // [3] Archon 1: ARCHON_SET yyyy yyxx xxxx
 // [4] Archon 2: ARCHON_SET yyyy yyxx xxxx
@@ -32,7 +32,23 @@ public class Communication {
     final static int ENEMY_ARCHON_ARRAY_START = 7;
     final static int BUILD_CODE_ARRAY_START = 12;
     final static int ENEMY_ARCHON_TO_ID = 10; // id array start - enemy archon array start
-    final static int NUM_PHASES = 4;
+
+    // TASK CODES
+    final static int SCOUT = 0;
+    final static int LATTICE = 1;
+    final static int EMERGENCY = 2;
+    final static int EXPLORE = 3;
+    final static int CRUNCH = 4;
+
+    // GLOBALS
+    //P1: build scout, miners, and voyage
+    //P2: spam soldiers to stop rush
+    //P3: disintegrate builders to start lead engine
+    //P4: start stockpiling lead for watchtowers and laboratory
+    static final int P2_START = 80;
+    static final int P3_START = 400; //survived rush, hopefully
+    static final int P4_START = 500;
+    static final int P4_SAVINGS = 1000;
 
     RobotController rc;
     MapLocation HQloc = null;
@@ -110,6 +126,7 @@ public class Communication {
                 boolean ARCHON_SET = (rc.readSharedArray(i) >> 12) == 1; // ARCHON_SET yyyy yyxx xxxx
                 boolean SAME_ID = r.ID == rc.readSharedArray(rc.readSharedArray(i + ENEMY_ARCHON_TO_ID));
                 // annoying possible bug here where id is 0 so it seems like the robot was already discovered. prob need an id set bit
+                if (r.ID == 0) SAME_ID = 900 == rc.readSharedArray(rc.readSharedArray(i + ENEMY_ARCHON_TO_ID));
                 if (!ARCHON_SET || SAME_ID) {
                     int code = (1 << 12) + (r.location.y << 6) + r.location.x;
                     System.err.println("wrote enemy archon at index " + i + " location " + new MapLocation(r.location.x, r.location.y));

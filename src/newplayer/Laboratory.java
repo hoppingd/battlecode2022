@@ -7,9 +7,9 @@ import battlecode.common.Team;
 
 public class Laboratory extends MyRobot {
 
-    static final int P4_SAVINGS = 1000;
     static final int OBSCENELY_RICH = 2000;
     Team myTeam, enemyTeam;
+    int task = 0;
 
     Laboratory(RobotController rc){
         super(rc);
@@ -18,14 +18,14 @@ public class Laboratory extends MyRobot {
     }
 
     void play(){
+        task = comm.getTask();
         transmute();
-
     }
 
     boolean transmute() {
         int currLead = rc.getTeamLeadAmount(myTeam);
         // need to win
-        if ((rc.getTeamGoldAmount(myTeam) <= rc.getTeamGoldAmount(enemyTeam) && currLead > P4_SAVINGS) || currLead > OBSCENELY_RICH) {
+        if (currLead > comm.P4_SAVINGS) {
             try {
                 if (rc.canTransmute()) {
                     rc.transmute();
@@ -35,7 +35,6 @@ public class Laboratory extends MyRobot {
                 e.printStackTrace();
             }
         }
-        // want more gold
         return false;
     }
 }

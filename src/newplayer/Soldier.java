@@ -5,6 +5,8 @@ import battlecode.common.*;
 public class Soldier extends MyRobot {
 
     static final int LATTICE_CONGESTION = 0;
+    static final int ALLY_FORCES_RANGE = 25;
+
     SoldierScout scout;
     boolean moved = false;
     int birthday;
@@ -13,6 +15,8 @@ public class Soldier extends MyRobot {
 
     MapLocation nearestCorner;
     int task = 0;
+    int crunchIdx = 0;
+    RobotInfo[] nearbyEnemies;
 
     public Soldier(RobotController rc){
         super(rc);
@@ -24,12 +28,14 @@ public class Soldier extends MyRobot {
         enemyTeam = myTeam.opponent();
         comm.readHQloc();
         nearestCorner = getNearestCorner();
+        nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
     }
 
     public void play(){
         moved = false;
         tryAttack();
         tryMove();
+        nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         tryAttack();
     }
 
@@ -51,7 +57,7 @@ public class Soldier extends MyRobot {
     }
 
     void tryAttack(){ // shoot lowest health with dist as tiebreaker
-        RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
+        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
         int bestHealth = 10000;
         int bestDist = 10000;
@@ -79,6 +85,7 @@ public class Soldier extends MyRobot {
 
     }
 
+    // TODO: cleanup
     void tryMove(){
         if (moved) return;
         if (rc.getRoundNum() == birthday) {
@@ -111,20 +118,64 @@ public class Soldier extends MyRobot {
                     return;
 
                  */
+                MapLocation target = moveInCombat();
+                if (target != null) {
+                    bfs.move(comm.HQloc);
+                    return;
+                }
                 MapLocation myLoc = rc.getLocation();
                 if (rc.senseNearbyRobots(myLoc, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(myLoc)) { // some spacing condition
                     return;
                 }
-                MapLocation loc = getFreeSpace();
-
-                if (loc != null) {
-                    bfs.move(loc);
+                target = getFreeSpace();
+                if (target != null) {
+                    bfs.move(target);
                     return;
                 }
                 break;
             }
             case 2: {// emergency
+                MapLocation target = moveInCombat();
+                if (target == null) {
+                    target = comm.getEmergencyLoc();
+                }
                 bfs.move(comm.getEmergencyLoc());
+                break;
+            }
+            case 3: { // explore
+                task = comm.getTask();
+                MapLocation target = moveInCombat();
+                if (target == null) {
+                    target = explore.getExploreTarget();
+                }
+                bfs.move(target);
+                senseEnemyArchons();
+                break;
+            }
+            case 4: { // crunch
+                task = comm.getTask();
+                MapLocation target = moveInCombat();
+                comm.readEnemyArchonLocations();
+                if (comm.enemyArchons[crunchIdx] != null) {
+                    if (target == null) {
+                        target = comm.enemyArchons[crunchIdx];
+                    }
+                    bfs.move(target);
+                    try {
+                        if (rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx])) {
+                            if (rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) crunchIdx = (crunchIdx + 1) % comm.numArchons;
+                        }
+                        else {
+                            crunchIdx = (crunchIdx + 1) % comm.numArchons;
+                        }
+                    } catch (Throwable t) {
+                        t.printStackTrace();
+                    }
+                }
+                else {
+                    bfs.move(explore.getExploreTarget()); // shouldnt just explore, we should look for hq at specific locations
+                }
+                senseEnemyArchons();
             }
             default:
         }
@@ -135,6 +186,47 @@ public class Soldier extends MyRobot {
         //soldiers dont explore
         //rc.setIndicatorDot(loc, 0, 0, 255);
         return;
+    }
+
+    //TODO: improve
+    MapLocation moveInCombat() {
+        MapLocation pursuitTarget = null;
+        int lowestHealth = 40000;
+        for (RobotInfo enemy : nearbyEnemies) {
+            // only consider offensive units
+            //TODO: only consider combat units, with more weight given to watchtowers
+            int myForcesCount = rc.getHealth();
+            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, ALLY_FORCES_RANGE, myTeam);
+            for (RobotInfo r : myForces) {
+                if (r.type.canAttack()) {
+                    myForcesCount += r.health;
+                }
+            }
+            int enemyForcesCount = 0;
+            if (enemy.type.canAttack()) enemyForcesCount = enemy.health;
+            RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
+            for (RobotInfo r : enemyForces) {
+                if (r.type.canAttack()) {
+                    enemyForcesCount += r.health;
+                }
+            }
+            if (myForcesCount < enemyForcesCount) {
+                return comm.HQloc; //for now we naively path home
+            }
+            else if (enemy.health < lowestHealth) {
+                lowestHealth = enemy.health;
+                pursuitTarget = enemy.location;
+            }
+        }
+        return pursuitTarget;
+    }
+
+    void senseEnemyArchons() { // check for enemy archon and write
+        for (RobotInfo r : nearbyEnemies) {
+            if (r.getType() == RobotType.ARCHON) {
+                comm.writeEnemyArchonLocation(r);
+            }
+        }
     }
 
     /*boolean goToEnemyHQ(){

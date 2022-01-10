@@ -7,10 +7,13 @@ import java.awt.*;
 public class Watchtower extends MyRobot {
 
     static final int MAX_CONGESTION = 5;
-    static final int P3_START = 400;
+    static final int ALLY_FORCES_RANGE = 25;
+
     Team myTeam, enemyTeam;
     int H, W;
     MapLocation nearestCorner;
+    int task = 0;
+    int crunchIdx = 0;
 
     Watchtower(RobotController rc) {
         super(rc);
@@ -23,13 +26,71 @@ public class Watchtower extends MyRobot {
     }
 
     void play() {
-        if (rc.getMode() == RobotMode.TURRET) {
-            tryAttack();
-            if(shouldGoPortable()) transform();
+        task = comm.getTask();
+        switch (task) {
+            case 0:
+            case 1:
+            case 3: {
+                if (rc.getMode() == RobotMode.TURRET) {
+                    tryAttack();
+                    if(shouldGoPortable()) transform();
+                }
+                if (rc.getMode() == RobotMode.PORTABLE){
+                    if(isSafe()) tryMove();
+                    if(shouldGoTurret()) transform();
+                }
+                break;
+            }
+            case 2: { //TODO: in emergencies, towers should move and try to help
+                if (rc.getMode() == RobotMode.PORTABLE){
+                    transform();
+                }
+                tryAttack();
+                break;
+            }
+            case 4:
+            {
+                MapLocation target = null;
+                    comm.readEnemyArchonLocations();
+                    if (comm.enemyArchons[crunchIdx] != null) {
+                        target = comm.enemyArchons[crunchIdx];
+                    if (rc.getMode() == RobotMode.TURRET) {
+                        tryAttack();
+                            if (rc.isTransformReady() && isSafe()) {
+                                transform();
+                            }
+                        }
+                    else {
+                        bfs.move(target);
+                        if(!isSafe()) transform();
+                    }
+
+                    try {
+                        if (rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx])) {
+                            if (rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) crunchIdx = (crunchIdx + 1) % comm.numArchons;
+                        }
+                        else {
+                            crunchIdx = (crunchIdx + 1) % comm.numArchons;
+                        }
+                    } catch (Throwable t) {
+                        t.printStackTrace();
+                    }
+                }
+                else {
+                    bfs.move(explore.getExploreTarget()); // shouldnt just explore, we should look for hq at specific locations
+                }
+                senseEnemyArchons();
+            }
         }
-        if (rc.getMode() == RobotMode.PORTABLE){
-            if(isSafe()) tryMove();
-            if(shouldGoTurret()) transform();
+
+    }
+
+    void senseEnemyArchons() { // check for enemy archon and write
+        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.WATCHTOWER.visionRadiusSquared, enemyTeam);
+        for (RobotInfo r : enemies) {
+            if (r.getType() == RobotType.ARCHON) {
+                comm.writeEnemyArchonLocation(r);
+            }
         }
     }
 
@@ -49,17 +110,37 @@ public class Watchtower extends MyRobot {
     }
 
     boolean shouldGoPortable() {
-        return rc.senseNearbyRobots(2, myTeam).length > MAX_CONGESTION && isSafe() && rc.getRoundNum() > P3_START;
+        return rc.senseNearbyRobots(2, myTeam).length > MAX_CONGESTION && isSafe() && rc.getRoundNum() > comm.P3_START;
     }
 
     //TODO: consider rubble?
     boolean shouldGoTurret() {
         return validTowerLoc(rc.getLocation()) || !isSafe();
     }
+
+    //TODO: improve
     boolean isSafe() {
-        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.WATCHTOWER.visionRadiusSquared, enemyTeam); // no enemies nearby
-        for (RobotInfo r : enemies) {
-            if (r.getType() == RobotType.SOLDIER || r.getType() == RobotType.WATCHTOWER || r.getType() == RobotType.SAGE) {
+        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.WATCHTOWER.visionRadiusSquared, enemyTeam);
+        for (RobotInfo enemy : enemies) {
+            // only consider offensive units
+            if (!enemy.type.canAttack()) continue;
+            //TODO: only consider combat units, with more weight given to watchtowers
+            int myForcesCount = 0;
+            if (rc.getMode() == RobotMode.TURRET) myForcesCount = rc.getHealth(); // may not be needed
+            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, ALLY_FORCES_RANGE, myTeam);
+            for (RobotInfo r : myForces) {
+                if (r.type.canAttack()) {
+                    myForcesCount += r.health;
+                }
+            }
+            int enemyForcesCount = enemy.health;
+            RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.WATCHTOWER.visionRadiusSquared, enemyTeam);
+            for (RobotInfo r : enemyForces) {
+                if (r.type.canAttack()) {
+                    enemyForcesCount += r.health;
+                }
+            }
+            if (myForcesCount < enemyForcesCount) {
                 return false;
             }
         }

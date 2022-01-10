@@ -1,7 +1,6 @@
 package newplayer;
 
-import battlecode.common.Direction;
-import battlecode.common.MapLocation;
+import battlecode.common.*;
 
 public class Util {
 
