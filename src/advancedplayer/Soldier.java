@@ -121,7 +121,7 @@ public class Soldier extends MyRobot {
                 if (target == null) {
                     target = comm.getEmergencyLoc();
                 }
-                bfs.move(comm.getEmergencyLoc());
+                bfs.move(target);
                 break;
             }
             case 3: { // explore
