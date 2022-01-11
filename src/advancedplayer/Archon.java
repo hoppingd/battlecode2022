@@ -39,6 +39,8 @@ public class Archon extends MyRobot {
     static final int P2_BUILDERS = 10;
     static final int CRUNCH_ROUND = 1500;
 
+    static final int MIN_LEAD_TO_MINE = 6;
+
     int H, W;
     Team myTeam, enemyTeam;
     int birthday;
@@ -77,7 +79,7 @@ public class Archon extends MyRobot {
         getNearbyInfo();
         comm.writeAllyArchonLocation(leadScore);
         mapCenter = new MapLocation((W - 1)/2, (H - 1)/2);
-        comm.setTask(3); // for now we are ignoring scouting and starting with harass/protecting miners
+        comm.setTask(comm.EXPLORE); // for now we are ignoring scouting and starting with harass/protecting miners
     }
 
     public void play() {
@@ -196,9 +198,7 @@ public class Archon extends MyRobot {
                 comm.writeBuildCode(3,2);
                 return true;
             }
-            else {
-                return false;
-            }
+            return false;
         }
         // PHASE 4
         else {
@@ -253,7 +253,9 @@ public class Archon extends MyRobot {
             if (task == 2) {
                 return true;
             }
-            if (currLead > 200) return true;
+            if (currLead > 200) {
+                return true;
+            }
             int buildCode = comm.readBuildCode(2);
             if (buildCode == 1) {
                 comm.writeBuildCode(2, 0);
@@ -270,8 +272,8 @@ public class Archon extends MyRobot {
                 comm.writeBuildCode(3,0);
                 return true;
             }
-            if (buildCode == 1) {
-                comm.writeBuildCode(3,2);
+            if (buildCode == 0) {
+                comm.writeBuildCode(3,1);
                 return true;
             }
             else {
@@ -294,23 +296,33 @@ public class Archon extends MyRobot {
         return task == 2 || currGold - RobotType.SAGE.buildCostGold > rc.getTeamGoldAmount(enemyTeam);
     }
 
+    //TODO: cleanup, spawn toward emergency, spawn in safe location, etc
     boolean tryBuild() {
-        if (comm.getSpawnCount() % rc.getArchonCount() != comm.spawnID) return false;
+        if (currRound < comm.P3_START && comm.getSpawnCount() % rc.getArchonCount() != comm.spawnID) return false;
         task = comm.getTask(); // check if emergency, if so we'll build soldiers
-        getMines(); // update deposits detected
         MapLocation myLoc = rc.getLocation();
         if (currLead >= RobotType.MINER.buildCostLead && shouldBuildMiner()) {
-            for (Direction dir : spawnDirections) { //TODO: clean up deciding bestDir
-                try {
+            MapLocation closestMine = getClosestMine();
+            Direction bestDir = null;
+            try {
+                for (Direction dir : spawnDirections) {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
-                        rc.buildRobot(RobotType.MINER, dir); // we simply spam miners
-                        comm.incSpawnCounter();
-                        minersBuilt++;
-                        return true;
+                        if (bestDir == null) {
+                            bestDir = dir;
+                        }
+                        else if (myLoc.add(dir).distanceSquaredTo(closestMine) < myLoc.add(bestDir).distanceSquaredTo(closestMine)) {
+                            bestDir = dir;
+                        }
                     }
-                } catch (Throwable t) {
-                    t.printStackTrace();
                 }
+                if (bestDir != null) {
+                    rc.buildRobot(RobotType.MINER, bestDir); // we simply spam soldiers
+                    comm.incSpawnCounter();
+                    minersBuilt++;
+                    return true;
+                }
+            } catch (Throwable t) {
+                t.printStackTrace();
             }
         }
         else if(currLead >= RobotType.BUILDER.buildCostLead && shouldBuildBuilder())
@@ -336,7 +348,6 @@ public class Archon extends MyRobot {
             } catch (Throwable t) {
                 t.printStackTrace();
             }
-
         }
         else if (currLead >= RobotType.SOLDIER.buildCostLead && shouldBuildSoldier()) {
             Direction bestDir = null;
@@ -406,39 +417,31 @@ public class Archon extends MyRobot {
             t.printStackTrace();
         }
     }
-    /*boolean goToEnemyHQ(){
-        MapLocation ans = null;
-        int minDist = -1;
-        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
-            if (r.getMapLocation() == null) continue;
-            if (r.team != rc.getTeam().opponent().ordinal()) continue;
-            if (rc.getRoundNum() - r.turnExplored <= EC_DELAY) continue;
-            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
-            if (minDist < 0 || minDist > dist){
-                minDist = dist;
-                ans = r.getMapLocation();
-            }
-        }
-        return moveSafely(ans, Util.SAFETY_DISTANCE_ENEMY_EC);
-    }*/
 
-    /*void updateECs(){
-        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
-            if (r.getMapLocation() == null) continue;
-            if (r.team != rc.getTeam().opponent().ordinal()) continue;
-            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
-            if (dist > Util.MUCKRAKER_DIST_EC) continue;
-            r.turnExplored = rc.getRoundNum();
-        }
-    }*/
-
-    void getMines(){
+    MapLocation getClosestMine(){
+        MapLocation myLoc = rc.getLocation();
+        MapLocation bestMine = null;
+        int bestDist = 10000;
         try {
-            MapLocation cells[] = rc.senseNearbyLocationsWithLead(RobotType.ARCHON.visionRadiusSquared);
-            depositsDetected = cells.length;
+            MapLocation leadMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared);
+            for (MapLocation mine : leadMines) {
+                int lead = rc.senseLead(mine);
+                if (lead > MIN_LEAD_TO_MINE) {
+                    int dist = myLoc.distanceSquaredTo(mine);
+                    if (bestMine == null) {
+                        bestMine = mine;
+                        bestDist = dist;
+                    }
+                    if (dist < bestDist) {
+                        bestMine = mine;
+                        bestDist = dist;
+                    }
+                }
+            }
         } catch (Throwable t) {
             t.printStackTrace();
         }
+        return bestMine;
     }
 
     void getNearbyInfo(){

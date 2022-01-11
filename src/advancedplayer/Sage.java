@@ -128,9 +128,9 @@ public class Sage extends MyRobot {
                     bfs.move(target);
                     try {
                         if (rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx])) {
-                            if (rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) crunchIdx = (crunchIdx + 1) % comm.numArchons;
-                        }
-                        else {
+                            if (rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) {
+                                comm.wipeEnemyArchonLocation(crunchIdx);
+                            }
                             crunchIdx = (crunchIdx + 1) % comm.numArchons;
                         }
                     } catch (Throwable t) {

@@ -57,7 +57,7 @@ public class Communication {
     static final int P2_START = 80;
     static final int P3_START = 400; //survived rush, hopefully
     static final int P4_START = 500;
-    static final int P4_SAVINGS = 1000;
+    static final int P4_SAVINGS = 875;
 
     static final int HIGH_LEAD_THRESHOLD = 2000;
     static final int LOW_LEAD_THRESHOLD = 25;
@@ -126,7 +126,7 @@ public class Communication {
                 if (!ARCHON_SET) {
                     int code = (1 << 12) + (rc.getLocation().y << 6) + rc.getLocation().x;
                     rc.writeSharedArray(i, code);
-                    System.err.println("wrote ally archon at index " + i + " location " + rc.getLocation());
+                    //System.err.println("wrote ally archon at index " + i + " location " + rc.getLocation());
                     spawnID = i - ALLY_ARCHON_ARRAY_START;
                     int score = rc.readSharedArray(26);
                     score += leadScore/numArchons;
@@ -153,7 +153,7 @@ public class Communication {
                     int x = code & 0x3F;
                     int y = (code >> 6) & 0x3F;
                     allyArchons[i - ALLY_ARCHON_ARRAY_START] = new MapLocation(x,y);
-                    System.err.println("read ally archon at index " + i + " location " + allyArchons[i - ALLY_ARCHON_ARRAY_START]);
+                    //System.err.println("read ally archon at index " + i + " location " + allyArchons[i - ALLY_ARCHON_ARRAY_START]);
 
                 }
                 else {
@@ -174,13 +174,14 @@ public class Communication {
         try {
             for (int i = ENEMY_ARCHON_ARRAY_START; i < ENEMY_ARCHON_ARRAY_START + numArchons; i++) {
                 boolean ARCHON_SET = (rc.readSharedArray(i) >> 12) == 1; // ARCHON_SET yyyy yyxx xxxx
-                boolean SAME_ID = r.ID == rc.readSharedArray(rc.readSharedArray(i + ENEMY_ARCHON_TO_ID));
-                // annoying possible bug here where id is 0 so it seems like the robot was already discovered. prob need an id set bit
-                if (r.ID == 0) SAME_ID = 900 == rc.readSharedArray(rc.readSharedArray(i + ENEMY_ARCHON_TO_ID));
-                if (!ARCHON_SET || SAME_ID) {
+                int readID = rc.readSharedArray(i + ENEMY_ARCHON_TO_ID);
+                boolean SAME_ID = (r.ID == readID);
+                // only write to unused space or same id space
+                if ((!ARCHON_SET && readID == 0) || SAME_ID) {
                     int code = (1 << 12) + (r.location.y << 6) + r.location.x;
-                    System.err.println("wrote enemy archon at index " + i + " location " + new MapLocation(r.location.x, r.location.y));
+                    //System.err.println("wrote enemy archon at index " + i + " location " + new MapLocation(r.location.x, r.location.y));
                     rc.writeSharedArray(i, code);
+                    rc.writeSharedArray(i + ENEMY_ARCHON_TO_ID, r.ID);
                     return;
                 }
             }
@@ -189,6 +190,15 @@ public class Communication {
             t.printStackTrace();
         }
         return;
+    }
+
+    void wipeEnemyArchonLocation(int i) {
+        try {
+            rc.writeSharedArray(ENEMY_ARCHON_ARRAY_START + i, 0);
+            enemyArchons[i] = null;
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 
     //reads enemy archon locations
@@ -203,6 +213,7 @@ public class Communication {
                     enemyArchons[i - ENEMY_ARCHON_ARRAY_START] = new MapLocation(x,y);
                 }
                 else {
+                    enemyArchons[i - ENEMY_ARCHON_ARRAY_START] = null;
                     return;
                 }
             }
@@ -284,8 +295,8 @@ public class Communication {
             int index = rc.readSharedArray(21);
             int leadScore = rc.readSharedArray(26);
             int score = 1800; // max from corner weight
-            System.err.println("lead score = " + leadScore / (double)numArchons);
-            System.err.println("lead score = " + ((leadScore / (double)numArchons) * (400.0/(H*W))));
+            //System.err.println("lead score = " + leadScore / (double)numArchons);
+            //System.err.println("lead score = " + ((leadScore / (double)numArchons) * (400.0/(H*W))));
             score -= allyArchons[index].distanceSquaredTo(new MapLocation((W-1)/2, (H-1)/2)); // distance from center
             //System.err.println("score after dist from center" + score);
             for (int i = 0; i < numArchons; i++) {

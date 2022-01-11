@@ -9,28 +9,50 @@ public class Miner extends MyRobot {
     static final int MIN_LEAD_TO_MINE = 6;
     static final int ALLY_FORCES_RANGE = 29;
 
+    int H, W;
     Team myTeam, enemyTeam;
 
     boolean moved = false;
+    RobotInfo[] nearbyEnemies;
+    double mapLeadScore = 50;
 
     public Miner(RobotController rc){
         super(rc);
+        H = rc.getMapHeight();
+        W = rc.getMapWidth();
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
         comm.readHQloc();
+        mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
     }
 
     public void play(){
+        nearbyEnemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
         moved = false;
         tryMine();
         tryMove();
-        tryMine();
+        if (Clock.getBytecodesLeft() > 100) tryMine();
+        if (Clock.getBytecodesLeft() > 1000) senseEnemyArchons(); // this is a random number
+    }
+
+    void senseEnemyArchons() { // check for enemy archon and write
+        for (RobotInfo r : nearbyEnemies) {
+            if (r.getType() == RobotType.ARCHON) {
+                comm.writeEnemyArchonLocation(r);
+                try {
+                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.SOLDIER.visionRadiusSquared).length > 12) { // sense not rush
+                        comm.setTask(4); // RUSH!
+                    }
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+        }
     }
 
     //TODO: improve
     MapLocation moveInCombat() {
-        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
-        for (RobotInfo enemy : enemies) {
+        for (RobotInfo enemy : nearbyEnemies) {
             // only consider offensive units
             if (!enemy.type.canAttack()) continue;
             //TODO: only consider combat units, with more weight given to watchtowers

@@ -16,6 +16,8 @@ public class Soldier extends MyRobot {
     int task = 0;
     int crunchIdx = 0;
     RobotInfo[] nearbyEnemies;
+    boolean attacked = false;
+    double mapLeadScore = 50;
 
     public Soldier(RobotController rc){
         super(rc);
@@ -27,34 +29,21 @@ public class Soldier extends MyRobot {
         comm.readHQloc();
         nearestCorner = getNearestCorner();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
+        mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
     }
 
     public void play(){
         moved = false;
+        attacked = false;
         tryAttack();
         tryMove();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
-        tryAttack();
-    }
+        if (Clock.getBytecodesLeft() > 100) tryAttack();
 
-    // TODO: implement a function to stay at max range from soldiers and flee from losing fights, pursuing winning fights
-    MapLocation enemyInSight(){ // soldiers will move toward enemies
-        MapLocation myLoc = rc.getLocation();
-        RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
-        MapLocation bestLoc = null;
-        int bestDist = 10000;
-        for (RobotInfo r : enemies){
-            MapLocation enemyLoc = r.getLocation();
-            int dist = myLoc.distanceSquaredTo(enemyLoc);
-            if (dist < bestDist && dist > rc.getType().actionRadiusSquared) {
-                bestDist = dist;
-                bestLoc = enemyLoc;
-            }
-        }
-        return bestLoc;
     }
 
     void tryAttack(){ // shoot lowest health with dist as tiebreaker
+        if (attacked) return;
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
         int bestHealth = 10000;
@@ -75,7 +64,10 @@ public class Soldier extends MyRobot {
             }
         }
         try {
-            if (bestLoc != null) rc.attack(bestLoc);
+            if (bestLoc != null) {
+                rc.attack(bestLoc);
+                attacked = true;
+            }
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -102,7 +94,7 @@ public class Soldier extends MyRobot {
                  */
                 MapLocation target = moveInCombat();
                 if (target != null) {
-                    bfs.move(moveInCombat());
+                    bfs.move(target);
                     return;
                 }
                 MapLocation myLoc = rc.getLocation();
@@ -145,17 +137,21 @@ public class Soldier extends MyRobot {
                     bfs.move(target);
                     try {
                         if (rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx])) {
-                            if (rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) crunchIdx = (crunchIdx + 1) % comm.numArchons;
-                        }
-                        else {
-                            crunchIdx = (crunchIdx + 1) % comm.numArchons;
+                            if (rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) {
+                                comm.wipeEnemyArchonLocation(crunchIdx);
+                                crunchIdx = (crunchIdx + 1) % comm.numArchons;
+                            }
                         }
                     } catch (Throwable t) {
                         t.printStackTrace();
                     }
                 }
                 else {
-                    bfs.move(explore.getExploreTarget()); // shouldnt just explore, we should look for hq at specific locations
+                    if (target == null) {
+                        target = explore.getExploreTarget();
+                    }
+                    crunchIdx = (crunchIdx + 1) % comm.numArchons;
+                    bfs.move(target);
                 }
                 senseEnemyArchons();
             }
@@ -195,7 +191,7 @@ public class Soldier extends MyRobot {
             if (myForcesCount < enemyForcesCount) {
                 return comm.HQloc; //for now we naively path home
             }
-            else if (enemy.health < lowestHealth) {
+            else if (enemy.health < lowestHealth) { //consider staying put if winning
                 lowestHealth = enemy.health;
                 pursuitTarget = enemy.location;
             }
@@ -207,6 +203,14 @@ public class Soldier extends MyRobot {
         for (RobotInfo r : nearbyEnemies) {
             if (r.getType() == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(r);
+                try {
+                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.SOLDIER.visionRadiusSquared).length > 12) { // sense not rush
+                        comm.setTask(4); // RUSH!
+                    }
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+
             }
         }
     }
