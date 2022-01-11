@@ -3,7 +3,6 @@
 //- Some "distance1 + weight < distance2" conditions are always true because their distance1 is always 0 and their distance2 is always 1,000,000
 //- All rc.onTheMap calls can be replaced with cheaper switch statements
 //- Math.sqrt isn't needed in the score calculations
-//- collections array as list max or mathmax?
 package advancedplayer;
 
 import battlecode.common.Direction;
@@ -1939,7 +1938,8 @@ public class BFSDroid extends BFS {
             double dist137 = (initialDist - Math.sqrt(l137.distanceSquaredTo(target))) / v137;
             double dist138 = (initialDist - Math.sqrt(l138.distanceSquaredTo(target))) / v138;
 
-            double bestEstimation = Collections.max(Arrays.asList(dist30, dist31, dist32, dist33, dist34, dist42, dist43, dist47, dist48, dist54, dist55, dist61, dist62, dist75, dist80, dist88, dist93, dist101, dist106, dist107, dist113, dist114, dist120, dist121, dist125, dist126, dist134, dist135, dist136, dist137, dist138));
+            double bestEstimation = Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(Math.max(dist30, dist31), dist32), dist33), dist34), dist42), dist43), dist47), dist48), dist54), dist55), dist61), dist62), dist75), dist80), dist88), dist93), dist101), dist106), dist107), dist113), dist114), dist120), dist121), dist125), dist126), dist134), dist135), dist136), dist137), dist138);
+
             if (bestEstimation == dist30) {
                 return d30;
             }

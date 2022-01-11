@@ -7,7 +7,6 @@ public class Soldier extends MyRobot {
     static final int LATTICE_CONGESTION = 0;
     static final int ALLY_FORCES_RANGE = 29;
 
-    boolean moved = false;
     int birthday;
     int H, W;
     Team myTeam, enemyTeam;
@@ -32,8 +31,7 @@ public class Soldier extends MyRobot {
         mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
     }
 
-    public void play(){
-        moved = false;
+    public void play() {
         attacked = false;
         tryAttack();
         tryMove();
@@ -77,7 +75,7 @@ public class Soldier extends MyRobot {
 
     // TODO: cleanup
     void tryMove(){
-        if (moved) return;
+        if (!rc.isMovementReady()) return;
         if (rc.getRoundNum() == birthday) {
             task = comm.getTask();
         }
@@ -126,7 +124,7 @@ public class Soldier extends MyRobot {
                 senseEnemyArchons();
                 break;
             }
-            case 4: { // crunch
+            case 4: { // crunch TODO: improve. get lowest index or nearest non null archon location
                 task = comm.getTask();
                 MapLocation target = moveInCombat();
                 comm.readEnemyArchonLocations();

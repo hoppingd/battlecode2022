@@ -74,9 +74,7 @@ public abstract class BFS {
 
         if (Clock.getBytecodesLeft() >= 2500) {
             //System.err.println("Using greedy");
-            //System.out.println("Before pathfinding " + Clock.getBytecodeNum());
             path.move(target);
-            //System.out.println("After pathfinding " + Clock.getBytecodeNum());
             --turnsGreedy;
         }
     }
