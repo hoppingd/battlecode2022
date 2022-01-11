@@ -9,12 +9,12 @@ public class Miner extends MyRobot {
     static final int MIN_LEAD_TO_MINE = 6;
     static final int ALLY_FORCES_RANGE = 29;
 
+    Direction[] dirs = Direction.allDirections();
     int H, W;
     Team myTeam, enemyTeam;
 
-    boolean moved = false;
     RobotInfo[] nearbyEnemies;
-    double mapLeadScore = 50;
+    double mapLeadScore;
 
     public Miner(RobotController rc){
         super(rc);
@@ -28,10 +28,11 @@ public class Miner extends MyRobot {
 
     public void play(){
         nearbyEnemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
-        moved = false;
         tryMine();
-        tryMove();
-        tryMine();
+        if (rc.isMovementReady()) {
+            tryMove();
+            tryMine();
+        }
     }
 
     //TODO: improve
@@ -41,7 +42,7 @@ public class Miner extends MyRobot {
             if (enemy.getType() == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(enemy);
                 try {
-                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.SOLDIER.visionRadiusSquared).length > 12) { // sense not rush
+                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 12) { // sense not rush
                         comm.setTask(4); // RUSH!
                     }
                 } catch (Throwable t) {
@@ -72,16 +73,17 @@ public class Miner extends MyRobot {
         return null;
     }
 
+    // TODO: improve
     void tryMine(){
         MapLocation myLoc = rc.getLocation();
         try {
-            for (Direction dir : Direction.allDirections()) {
+            for (Direction dir : dirs) {
                 MapLocation prospect = myLoc.add(dir);
-                if (!(rc.onTheMap(prospect))) continue;
+                if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
                 int lead = rc.senseLead(prospect);
                 int gold = rc.senseGold(prospect); //adds max of 45 bytecode
-                // TODO: improve
-                while (lead > MIN_LEAD_TO_MINE) {
+
+                while (lead > 1) {
                     if (rc.isActionReady()) {
                         rc.mineLead(prospect);
                         lead--;
@@ -106,7 +108,6 @@ public class Miner extends MyRobot {
     }
 
     void tryMove(){
-        if (moved) return;
         MapLocation loc = moveInCombat();
         if (loc == null) loc = getClosestMine();
         if (loc != null){
@@ -123,21 +124,17 @@ public class Miner extends MyRobot {
         MapLocation bestMine = null;
         int bestDist = 10000;
         try {
-            MapLocation leadMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared);
+            MapLocation leadMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared, MIN_LEAD_TO_MINE);
             for (MapLocation mine : leadMines) { // interlinked
-                int lead = rc.senseLead(mine);
-                // consider gold? would add bytecode
-                if (lead > MIN_LEAD_TO_MINE) {
-                    if ((comm.HQloc != null && mine.isAdjacentTo(comm.HQloc)) || rc.senseNearbyRobots(mine, 2, myTeam).length > 2) continue;
-                    int dist = myLoc.distanceSquaredTo(mine);
-                    if (bestMine == null) {
-                        bestMine = mine;
-                        bestDist = dist;
-                    }
-                    if (dist < bestDist) {
-                        bestMine = mine;
-                        bestDist = dist;
-                    }
+                if ((comm.HQloc != null && mine.isAdjacentTo(comm.HQloc)) || rc.senseNearbyRobots(mine, 2, myTeam).length > 2) continue;
+                int dist = myLoc.distanceSquaredTo(mine);
+                if (bestMine == null) {
+                    bestMine = mine;
+                    bestDist = dist;
+                }
+                if (dist < bestDist) {
+                    bestMine = mine;
+                    bestDist = dist;
                 }
             }
         } catch (Throwable t) {

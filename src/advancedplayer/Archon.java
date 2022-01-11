@@ -21,6 +21,8 @@ package advancedplayer;
 
 import battlecode.common.*;
 
+import java.util.Map;
+
 public class Archon extends MyRobot {
     static final Direction[] spawnDirections = {
             Direction.NORTH,
@@ -135,6 +137,7 @@ public class Archon extends MyRobot {
     }
 
     void tryMove(){
+        if (!rc.isMovementReady()) return;
         if (comm.HQloc == null) {
             comm.readHQloc();
         }
@@ -299,20 +302,22 @@ public class Archon extends MyRobot {
         MapLocation myLoc = rc.getLocation();
         if (currLead >= RobotType.MINER.buildCostLead && shouldBuildMiner()) {
             MapLocation closestMine = getClosestMine();
-            Direction bestDir = null;
+            MapLocation bestLoc = null;
             try {
+                // TODO: if there are no mines in proximimty, should we consider spawn location?
                 for (Direction dir : spawnDirections) {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
-                        if (bestDir == null) {
-                            bestDir = dir;
+                        MapLocation spawnLoc = myLoc.add(dir);
+                        if (bestLoc == null) {
+                            bestLoc = spawnLoc;
                         }
-                        else if (myLoc.add(dir).distanceSquaredTo(closestMine) < myLoc.add(bestDir).distanceSquaredTo(closestMine)) {
-                            bestDir = dir;
+                        else if (closestMine != null && spawnLoc.distanceSquaredTo(closestMine) < bestLoc.distanceSquaredTo(closestMine)) {
+                            bestLoc = spawnLoc;
                         }
                     }
                 }
-                if (bestDir != null) {
-                    rc.buildRobot(RobotType.MINER, bestDir); // we simply spam soldiers
+                if (bestLoc != null) {
+                    rc.buildRobot(RobotType.MINER, myLoc.directionTo(bestLoc)); // we simply spam soldiers
                     comm.incSpawnCounter();
                     minersBuilt++;
                     return true;
@@ -321,22 +326,24 @@ public class Archon extends MyRobot {
                 t.printStackTrace();
             }
         }
+        // TODO: spawn toward best prospect?
         else if(currLead >= RobotType.BUILDER.buildCostLead && shouldBuildBuilder())
         {
-            Direction bestDir = null;
+            MapLocation bestLoc = null;
             try {
                 for (Direction dir : spawnDirections) {
                     if (rc.canBuildRobot(RobotType.BUILDER, dir)) {
-                        if (bestDir == null) {
-                            bestDir = dir;
+                        MapLocation spawnLoc = myLoc.add(dir);
+                        if (bestLoc == null) {
+                            bestLoc = spawnLoc;
                         }
-                        else if (myLoc.add(dir).distanceSquaredTo(mapCenter) < myLoc.add(bestDir).distanceSquaredTo(mapCenter)) {
-                            bestDir = dir;
+                        else if (spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) {
+                            bestLoc = spawnLoc;
                         }
                     }
                 }
-                if (bestDir != null) {
-                    rc.buildRobot(RobotType.BUILDER, bestDir);
+                if (bestLoc != null) {
+                    rc.buildRobot(RobotType.BUILDER, myLoc.directionTo(bestLoc));
                     comm.incSpawnCounter();
                     builderCount++;
                     return true;
@@ -346,20 +353,21 @@ public class Archon extends MyRobot {
             }
         }
         else if (currLead >= RobotType.SOLDIER.buildCostLead && shouldBuildSoldier()) {
-            Direction bestDir = null;
+            MapLocation bestLoc = null;
             try {
                 for (Direction dir : spawnDirections) {
                     if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
-                        if (bestDir == null) {
-                            bestDir = dir;
+                        MapLocation spawnLoc = myLoc.add(dir);
+                        if (bestLoc == null) {
+                            bestLoc = spawnLoc;
                         }
-                        else if (myLoc.add(dir).distanceSquaredTo(mapCenter) < myLoc.add(bestDir).distanceSquaredTo(mapCenter)) {
-                            bestDir = dir;
+                        else if (spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) {
+                            bestLoc = spawnLoc;
                         }
                     }
                 }
-                if (bestDir != null) {
-                    rc.buildRobot(RobotType.SOLDIER, bestDir); // we simply spam soldiers
+                if (bestLoc != null) {
+                    rc.buildRobot(RobotType.SOLDIER, myLoc.directionTo(bestLoc));
                     comm.incSpawnCounter();
                     soldiersBuilt++;
                     return true;
@@ -369,21 +377,22 @@ public class Archon extends MyRobot {
             }
         }
         else if (currGold >= RobotType.SAGE.buildCostGold && shouldBuildSage()) {
-            Direction bestDir = null;
+            MapLocation bestLoc = null;
             try {
                 for (Direction dir : spawnDirections) {
                     if (rc.canBuildRobot(RobotType.SAGE, dir)) {
-                        if (bestDir == null) {
-                            bestDir = dir;
+                        MapLocation spawnLoc = myLoc.add(dir);
+                        if (bestLoc == null) {
+                            bestLoc = spawnLoc;
                         }
-                        else if (myLoc.add(dir).distanceSquaredTo(mapCenter) < myLoc.add(bestDir).distanceSquaredTo(mapCenter)) {
-                            bestDir = dir;
+                        else if (spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) {
+                            bestLoc = spawnLoc;
                         }
                     }
                 }
-                if (bestDir != null) {
+                if (bestLoc != null) {
                     comm.incSpawnCounter();
-                    rc.buildRobot(RobotType.SAGE, bestDir);
+                    rc.buildRobot(RobotType.SAGE, myLoc.directionTo(bestLoc));
                     return true;
                 }
             } catch (Throwable t) {

@@ -192,6 +192,7 @@ public class Builder extends MyRobot {
 
     // TODO: disintegrate if not emergency and havent built in x turns
     void tryMove(){
+        if (!rc.isMovementReady()) return;
         MapLocation target = null;
         if (task !=2 && ((LOW_LEAD_MAP && currRound < comm.P4_START) || (currRound > comm.P4_START && watchRepairedCount > 0))) {
             target = getMineProspect();
