@@ -393,7 +393,7 @@ public class Communication {
     MapLocation getEmergencyLoc() {
         MapLocation loc = null;
         try {
-            int code = rc.readSharedArray(0); //HQ_DECIDED yyyy yyxx xxxx
+            int code = rc.readSharedArray(16); // yyyy yyxx xxxx
             int x = code & 0x3F;
             int y = (code >> 6) & 0x3F;
             loc = new MapLocation(x, y);
