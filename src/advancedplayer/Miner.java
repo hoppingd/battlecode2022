@@ -31,14 +31,15 @@ public class Miner extends MyRobot {
         moved = false;
         tryMine();
         tryMove();
-        if (Clock.getBytecodesLeft() > 100) tryMine();
-        if (Clock.getBytecodesLeft() > 1000) senseEnemyArchons(); // this is a random number
+        tryMine();
     }
 
-    void senseEnemyArchons() { // check for enemy archon and write
-        for (RobotInfo r : nearbyEnemies) {
-            if (r.getType() == RobotType.ARCHON) {
-                comm.writeEnemyArchonLocation(r);
+    //TODO: improve
+    MapLocation moveInCombat() {
+        for (RobotInfo enemy : nearbyEnemies) {
+            //sense enemyArchons
+            if (enemy.getType() == RobotType.ARCHON) {
+                comm.writeEnemyArchonLocation(enemy);
                 try {
                     if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.SOLDIER.visionRadiusSquared).length > 12) { // sense not rush
                         comm.setTask(4); // RUSH!
@@ -47,12 +48,6 @@ public class Miner extends MyRobot {
                     t.printStackTrace();
                 }
             }
-        }
-    }
-
-    //TODO: improve
-    MapLocation moveInCombat() {
-        for (RobotInfo enemy : nearbyEnemies) {
             // only consider offensive units
             if (!enemy.type.canAttack()) continue;
             //TODO: only consider combat units, with more weight given to watchtowers
@@ -85,6 +80,7 @@ public class Miner extends MyRobot {
                 if (!(rc.onTheMap(prospect))) continue;
                 int lead = rc.senseLead(prospect);
                 int gold = rc.senseGold(prospect); //adds max of 45 bytecode
+                // TODO: improve
                 while (lead > MIN_LEAD_TO_MINE) {
                     if (rc.isActionReady()) {
                         rc.mineLead(prospect);

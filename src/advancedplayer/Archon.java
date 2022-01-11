@@ -20,7 +20,6 @@ package advancedplayer;
 
 
 import battlecode.common.*;
-import scala.collection.Map;
 
 public class Archon extends MyRobot {
     static final Direction[] spawnDirections = {
@@ -38,7 +37,6 @@ public class Archon extends MyRobot {
     static final int P1_BUILDERS = 5;
     static final int P2_BUILDERS = 10;
     static final int CRUNCH_ROUND = 1500;
-
     static final int MIN_LEAD_TO_MINE = 6;
 
     int H, W;
@@ -87,7 +85,7 @@ public class Archon extends MyRobot {
         currRound = rc.getRoundNum();
         currLead = rc.getTeamLeadAmount(myTeam);
         currGold = rc.getTeamGoldAmount(myTeam);
-
+        // HQ SETUP
         if (currRound == birthday + 1) { //write scores on 2nd round now that we have location
             comm.writeScore(avgRubble, myRubble);
             comm.readLeadScore(); // we also get lead score to determine how much we build before moving, if we should make mines, build towers, etc
@@ -101,10 +99,8 @@ public class Archon extends MyRobot {
         if (currRound >= CRUNCH_ROUND && (rc.getArchonCount() < comm.numArchons || rc.getTeamGoldAmount(myTeam) < rc.getTeamGoldAmount(enemyTeam))) { // if we lost an archon, we need to try to get theirs
             comm.setTask(comm.CRUNCH);
         }
-
-        checkForAttackers(); //sends emergency to all soldiers if x enemies in archon vision
-
         if (rc.getMode() == RobotMode.TURRET) {
+            checkForAttackers(); //sends emergency to all soldiers if x enemies in archon vision
             if (!arrived && currRound > birthday + 2) {
                 if (minersBuilt >= P1_MINERS - comm.numArchons) { // archon voyage
                     try {
@@ -142,7 +138,7 @@ public class Archon extends MyRobot {
         if (comm.HQloc == null) {
             comm.readHQloc();
         }
-        // TODO: consider rubble
+        // TODO: consider rubble and danger
         if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, (int) Math.round(Math.sqrt(H*W)))) {
             try {
                 if (rc.isTransformReady()) {

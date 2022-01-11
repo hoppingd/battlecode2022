@@ -17,7 +17,7 @@ public class Soldier extends MyRobot {
     int crunchIdx = 0;
     RobotInfo[] nearbyEnemies;
     boolean attacked = false;
-    double mapLeadScore = 50;
+    double mapLeadScore;
 
     public Soldier(RobotController rc){
         super(rc);
@@ -38,7 +38,7 @@ public class Soldier extends MyRobot {
         tryAttack();
         tryMove();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
-        if (Clock.getBytecodesLeft() > 100) tryAttack();
+        tryAttack();
 
     }
 
