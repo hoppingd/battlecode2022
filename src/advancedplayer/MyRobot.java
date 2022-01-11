@@ -37,12 +37,9 @@ public abstract class MyRobot {
         comm.init();
         bfs.initTurn();
         explore.initTurn();
-        //comm.readMessages();
-        //comm.debugDraw();
     }
 
     void endTurn(){
-        //comm.run();
         explore.initialize();
         explore.markSeen();
     }
