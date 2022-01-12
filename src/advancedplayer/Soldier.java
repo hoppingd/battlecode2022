@@ -13,7 +13,6 @@ public class Soldier extends MyRobot {
 
     MapLocation nearestCorner;
     int task = 0;
-    int crunchIdx = 0;
     RobotInfo[] nearbyEnemies;
     boolean attacked = false;
     double mapLeadScore;
@@ -107,6 +106,7 @@ public class Soldier extends MyRobot {
                 break;
             }
             case 2: {// emergency
+                task = comm.getTask();
                 MapLocation target = moveInCombat();
                 if (target == null) {
                     target = comm.getEmergencyLoc();
@@ -125,30 +125,32 @@ public class Soldier extends MyRobot {
                 break;
             }
             case 4: { // crunch TODO: improve. get lowest index or nearest non null archon location
-                task = comm.getTask();
                 MapLocation target = moveInCombat();
                 comm.readEnemyArchonLocations();
+                int crunchIdx = comm.getCrunchIdx();
                 if (comm.enemyArchons[crunchIdx] != null) {
                     if (target == null) {
                         target = comm.enemyArchons[crunchIdx];
                     }
                     bfs.move(target);
                     try {
-                        if (rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx])) {
-                            if (rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) {
+                        if (rc.canSenseLocation(comm.enemyArchons[crunchIdx])) {
+                            boolean targetInRange = rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx]);
+                            if (!targetInRange || rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) { // archon is dead or has moved
                                 comm.wipeEnemyArchonLocation(crunchIdx);
-                                crunchIdx = (crunchIdx + 1) % comm.numArchons;
+                                comm.incCrunchIdx();
                             }
+                            // if archon, don't update crunch index
                         }
                     } catch (Throwable t) {
                         t.printStackTrace();
                     }
                 }
                 else {
+                    comm.incCrunchIdx(); // we are checking the wrong index, so increment
                     if (target == null) {
                         target = explore.getExploreTarget();
                     }
-                    crunchIdx = (crunchIdx + 1) % comm.numArchons;
                     bfs.move(target);
                 }
                 senseEnemyArchons();
@@ -169,8 +171,7 @@ public class Soldier extends MyRobot {
         MapLocation pursuitTarget = null;
         int lowestHealth = 40000;
         for (RobotInfo enemy : nearbyEnemies) {
-            // only consider offensive units
-            //TODO: only consider combat units, with more weight given to watchtowers
+            //TODO: improve logic
             int myForcesCount = rc.getHealth();
             RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, ALLY_FORCES_RANGE, myTeam);
             for (RobotInfo r : myForces) {
@@ -189,9 +190,12 @@ public class Soldier extends MyRobot {
             if (myForcesCount < enemyForcesCount) {
                 return comm.HQloc; //for now we naively path home
             }
-            else if (enemy.health < lowestHealth) { //consider staying put if winning
+            else if (enemy.type.canAttack() && enemy.health < lowestHealth) {
                 lowestHealth = enemy.health;
-                pursuitTarget = enemy.location;
+                pursuitTarget = rc.getLocation(); // stay put if winning, don't risk pursuin
+            }
+            else if (enemyForcesCount == 0) {
+                pursuitTarget = enemy.location; // no nearby forces? harass.
             }
         }
         return pursuitTarget;
@@ -286,6 +290,12 @@ public class Soldier extends MyRobot {
         else {
             y = H1;
         }
-        return new MapLocation(x,y);
+        MapLocation nearestCorner = new MapLocation(x,y);
+        int d1 = comm.HQloc.distanceSquaredTo(nearestCorner);
+        // if not near corner, build around HQ
+        if (comm.HQloc.distanceSquaredTo(new MapLocation(x, H1/2)) < d1 || comm.HQloc.distanceSquaredTo(new MapLocation(W1/2, y)) < d1) {
+            nearestCorner = comm.HQloc;
+        }
+        return nearestCorner;
     }
 }

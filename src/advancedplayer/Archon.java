@@ -61,6 +61,7 @@ public class Archon extends MyRobot {
     // maptestsmall         7954    2989        earlyTower
     // intersection         150     49          none
     // eckleburg            85      9           farm
+
     MapLocation mapCenter;
 
     boolean arrived = false;
@@ -83,7 +84,7 @@ public class Archon extends MyRobot {
     }
 
     public void play() {
-        if (comm.spawnID >= rc.getArchonCount()) comm.fixSpawnID(); // avoid getting stuck if an archon dies
+        if (comm.spawnID >= rc.getArchonCount()) comm.fixSpawnID(); // TODO: FIX spawn id if archon dies...
         currRound = rc.getRoundNum();
         currLead = rc.getTeamLeadAmount(myTeam);
         currGold = rc.getTeamGoldAmount(myTeam);
@@ -98,13 +99,13 @@ public class Archon extends MyRobot {
             if (rc.getLocation().equals(comm.HQloc)) arrived = true;
         }
         // CRUNCH TIME
-        if (currRound >= CRUNCH_ROUND && (rc.getArchonCount() < comm.numArchons || rc.getTeamGoldAmount(myTeam) < rc.getTeamGoldAmount(enemyTeam))) { // if we lost an archon, we need to try to get theirs
+        if (currRound >= CRUNCH_ROUND && rc.getArchonCount() < comm.numArchons) { // if we lost an archon, we need to try to get theirs
             comm.setTask(comm.CRUNCH);
         }
         if (rc.getMode() == RobotMode.TURRET) {
             checkForAttackers(); //sends emergency to all soldiers if x enemies in archon vision
             if (!arrived && currRound > birthday + 2) {
-                if (minersBuilt >= P1_MINERS - comm.numArchons) { // archon voyage
+                if (minersBuilt >= P1_MINERS - comm.numArchons || currRound > comm.P2_START) { // archon voyage
                     try {
                         if (rc.isTransformReady()) {
                             rc.transform();
@@ -133,7 +134,7 @@ public class Archon extends MyRobot {
             comm.setTask(comm.EMERGENCY);
             return;
         }
-        if (task == comm.EMERGENCY) comm.setTask(comm.LATTICE);
+        if (task == comm.EMERGENCY) comm.setTask(comm.EXPLORE);
     }
 
     void tryMove(){
@@ -171,7 +172,7 @@ public class Archon extends MyRobot {
             else if (minersBuilt < P1_MINERS - comm.numArchons) { // hq build miners
                 return true;
             }
-            else if (builderCount < P1_BUILDERS && (mapLeadScore > comm.HIGH_LEAD_THRESHOLD || mapLeadScore < comm.LOW_LEAD_THRESHOLD)) { // need more deposits or need to rush towers
+            else if (builderCount < P1_BUILDERS && (mapLeadScore > comm.HIGH_LEAD_THRESHOLD)) { // need more deposits or need to rush towers
                 return false;
             }
             return false;
@@ -203,7 +204,7 @@ public class Archon extends MyRobot {
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
             int buildCode = comm.readBuildCode(4);
-            if (buildCode == 0 && currLead > comm.P4_SAVINGS + RobotType.MINER.buildCostLead) {
+            if (buildCode == 0 && (currLead > comm.P4_SAVINGS + RobotType.MINER.buildCostLead || (comm.labIsBuilt() && currLead > RobotType.WATCHTOWER.buildCostLead + RobotType.BUILDER.buildCostLead))) {
                 comm.writeBuildCode(4,1);
                 return true;
             }
@@ -215,12 +216,12 @@ public class Archon extends MyRobot {
         if (task == comm.CRUNCH) return false; //crunch
         // PHASE 1
         if (currRound < comm.P2_START) {
-            if (arrived && builderCount < P1_BUILDERS && (mapLeadScore > comm.HIGH_LEAD_THRESHOLD || mapLeadScore < comm.LOW_LEAD_THRESHOLD)) return true; // early towers or early farm
+            if (arrived && builderCount < P1_BUILDERS && (mapLeadScore > comm.HIGH_LEAD_THRESHOLD)) return true; // early towers
             return false;
         }
         // PHASE 2
         else if (currRound < comm.P3_START) { //TODO: disintegrate miners if lead is low
-            if (builderCount < minersBuilt && builderCount < P2_BUILDERS && mapLeadScore > comm.HIGH_LEAD_THRESHOLD ) return true; // early towers only
+            if (builderCount < minersBuilt && builderCount < P2_BUILDERS && mapLeadScore > comm.HIGH_LEAD_THRESHOLD ) return true; // early towers
             return false;
         }
         // PHASE 3
@@ -232,7 +233,7 @@ public class Archon extends MyRobot {
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
             int buildCode = comm.readBuildCode(4);
-            if (buildCode == 1 && currLead > comm.P4_SAVINGS + RobotType.BUILDER.buildCostLead) {
+            if (buildCode == 1 && (currLead > comm.P4_SAVINGS + RobotType.BUILDER.buildCostLead || (comm.labIsBuilt() && currLead > RobotType.WATCHTOWER.buildCostLead))) {
                 comm.writeBuildCode(4,2);
                 return true;
             }
@@ -241,6 +242,7 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildSoldier() {
+        if (currGold > RobotType.SAGE.buildCostGold) return false;
         if (task == 4) return true; //crunch
         // PHASE 1
         if (currRound < comm.P2_START) {
@@ -249,9 +251,6 @@ public class Archon extends MyRobot {
         }
         // PHASE 2
         else if (currRound < comm.P3_START) {
-            if (task == 2) {
-                return true;
-            }
             if (currLead > 200) {
                 return true;
             }
@@ -281,9 +280,8 @@ public class Archon extends MyRobot {
         }
         // PHASE 4
         else {
-            if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
             int buildCode = comm.readBuildCode(4);
-            if ((buildCode == 2 && currLead > comm.P4_SAVINGS + RobotType.SOLDIER.buildCostLead)) {
+            if ((buildCode == 2 && (currLead > comm.P4_SAVINGS + RobotType.SOLDIER.buildCostLead || (comm.labIsBuilt() && currLead > RobotType.WATCHTOWER.buildCostLead + RobotType.BUILDER.buildCostLead)))) {
                 comm.writeBuildCode(4,0);
                 return true;
             }
@@ -292,7 +290,7 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildSage() {
-        return task == 2 || currGold - RobotType.SAGE.buildCostGold > rc.getTeamGoldAmount(enemyTeam);
+        return task == 2 || currGold > RobotType.SAGE.buildCostGold;
     }
 
     //TODO: cleanup, spawn toward emergency, spawn in safe location, etc

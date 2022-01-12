@@ -1,9 +1,6 @@
 package advancedplayer;
 
-import battlecode.common.Clock;
-import battlecode.common.MapLocation;
-import battlecode.common.RobotController;
-import battlecode.common.Team;
+import battlecode.common.*;
 
 public class Laboratory extends MyRobot {
 
@@ -25,7 +22,7 @@ public class Laboratory extends MyRobot {
     boolean transmute() {
         int currLead = rc.getTeamLeadAmount(myTeam);
         // need to win
-        if (currLead > comm.P4_SAVINGS) {
+        if (currLead - rc.getTransmutationRate() > RobotType.WATCHTOWER.buildCostLead + RobotType.BUILDER.buildCostLead || (rc.getRoundNum() > 1900 && rc.getTeamGoldAmount(myTeam) <= rc.getTeamGoldAmount(enemyTeam))) { // <- try to win on gold
             try {
                 if (rc.canTransmute()) {
                     rc.transmute();

@@ -219,7 +219,7 @@ public class Builder extends MyRobot {
         }
     }
 
-    //TODO: improve
+    //TODO: improve. try to finish towers.
     MapLocation moveInCombat() {
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
         for (RobotInfo enemy : enemies) {
@@ -240,7 +240,7 @@ public class Builder extends MyRobot {
                     enemyForcesCount += r.health;
                 }
             }
-            if (myForcesCount < enemyForcesCount) {
+            if (myForcesCount < enemyForcesCount * 2) {
                 return comm.HQloc; //for now we naively path home
             }
         }
@@ -352,6 +352,15 @@ public class Builder extends MyRobot {
         else {
             y = H1;
         }
-        return new MapLocation(x,y);
+        MapLocation nearestCorner = new MapLocation(x,y);
+        int d1 = comm.HQloc.distanceSquaredTo(nearestCorner);
+        // if not near corner, build around HQ TODO: if close to wall, builder should build near wall, not HQ
+        if (comm.HQloc.distanceSquaredTo(new MapLocation(x, H1/2)) < d1) {
+            nearestCorner = new MapLocation(x, comm.HQloc.y);
+        }
+        else if (comm.HQloc.distanceSquaredTo(new MapLocation(W1/2, y)) < d1) {
+            nearestCorner = new MapLocation(comm.HQloc.x, y);
+        }
+        return nearestCorner;
     }
 }

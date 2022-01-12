@@ -66,7 +66,7 @@ public class Miner extends MyRobot {
                     enemyForcesCount += r.health;
                 }
             }
-            if (myForcesCount < enemyForcesCount) {
+            if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer
                 if (comm.HQloc != null) return comm.HQloc; //for now we naively path home
             }
         }
@@ -114,7 +114,7 @@ public class Miner extends MyRobot {
             bfs.move(loc);
             return;
         }
-        loc = explore.getExploreTarget();
+        loc = explore.getExploreTarget(); // TODO: try to explore different directions so we dont get unlucky
         bfs.move(loc);
         return;
     }

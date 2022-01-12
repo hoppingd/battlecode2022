@@ -25,7 +25,8 @@
 // [24] HQ score 3: score
 // [25] HQ score 4: score
 // [26] Map Lead Score: score
-// [27] Spawn counter = count;
+// [27] Spawn counter = count
+// [28] Crunch index = idx
 
 package advancedplayer;
 
@@ -57,7 +58,7 @@ public class Communication {
     static final int P2_START = 80;
     static final int P3_START = 400; //survived rush, hopefully
     static final int P4_START = 500;
-    static final int P4_SAVINGS = 875;
+    static final int P4_SAVINGS = 325;
 
     static final int HIGH_LEAD_THRESHOLD = 2000;
     static final int LOW_LEAD_THRESHOLD = 25;
@@ -107,8 +108,28 @@ public class Communication {
     }
 
     void fixSpawnID() {
-        spawnID -= numArchons - rc.getArchonCount();
+        spawnID -= archonsAlive - rc.getArchonCount();
         archonsAlive = rc.getArchonCount();
+    }
+
+    int getCrunchIdx() {
+        int idx = 0;
+        try {
+            idx = rc.readSharedArray(28);
+            idx %= numArchons;
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return idx;
+    }
+
+    void incCrunchIdx() {
+        try {
+            int idx = rc.readSharedArray(28);
+            rc.writeSharedArray(28, idx + 1);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 
     void readLeadScore() {
@@ -118,6 +139,7 @@ public class Communication {
             t.printStackTrace();
         }
     }
+
     // writes to first available archon location. also writes lead score and sets spawnid.
     void writeAllyArchonLocation(int leadScore) {
         try {

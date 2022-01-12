@@ -13,7 +13,6 @@ public class Watchtower extends MyRobot {
     int H, W;
     MapLocation nearestCorner;
     int task = 0;
-    int crunchIdx = 0;
 
     Watchtower(RobotController rc) {
         super(rc);
@@ -50,34 +49,34 @@ public class Watchtower extends MyRobot {
             }
             case 4:
             {
+                //TODO: FIX
                 MapLocation target = null;
-                    comm.readEnemyArchonLocations();
-                    if (comm.enemyArchons[crunchIdx] != null) {
+                comm.readEnemyArchonLocations();
+                int crunchIdx = comm.getCrunchIdx();
+                if (comm.enemyArchons[crunchIdx] != null) {
+                    if (target == null) {
                         target = comm.enemyArchons[crunchIdx];
-                    if (rc.getMode() == RobotMode.TURRET) {
-                        tryAttack();
-                            if (rc.isTransformReady() && isSafe()) {
-                                transform();
-                            }
-                        }
-                    else {
-                        bfs.move(target);
-                        if(!isSafe()) transform();
                     }
-
+                    bfs.move(target);
                     try {
-                        if (rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx])) {
-                            if (rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) crunchIdx = (crunchIdx + 1) % comm.numArchons;
-                        }
-                        else {
-                            crunchIdx = (crunchIdx + 1) % comm.numArchons;
+                        if (rc.canSenseLocation(comm.enemyArchons[crunchIdx])) {
+                            boolean targetInRange = rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx]);
+                            if (!targetInRange || rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) { // archon is dead or has moved
+                                comm.wipeEnemyArchonLocation(crunchIdx);
+                                comm.incCrunchIdx();
+                            }
+                            // if archon, don't update crunch index
                         }
                     } catch (Throwable t) {
                         t.printStackTrace();
                     }
                 }
                 else {
-                    bfs.move(explore.getExploreTarget()); // shouldnt just explore, we should look for hq at specific locations
+                    comm.incCrunchIdx(); // we are checking the wrong index, so increment
+                    if (target == null) {
+                        target = explore.getExploreTarget();
+                    }
+                    bfs.move(target);
                 }
                 senseEnemyArchons();
             }
@@ -225,7 +224,13 @@ public class Watchtower extends MyRobot {
         else {
             y = H1;
         }
-        return new MapLocation(x,y);
+        MapLocation nearestCorner = new MapLocation(x,y);
+        int d1 = comm.HQloc.distanceSquaredTo(nearestCorner);
+        // if not near corner, build around HQ
+        if (comm.HQloc.distanceSquaredTo(new MapLocation(x, H1/2)) < d1 || comm.HQloc.distanceSquaredTo(new MapLocation(W1/2, y)) < d1) {
+            nearestCorner = comm.HQloc;
+        }
+        return nearestCorner;
     }
 
 }
