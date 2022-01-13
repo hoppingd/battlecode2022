@@ -46,6 +46,7 @@ public class Sage extends MyRobot {
         tryMove();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.SAGE.visionRadiusSquared, enemyTeam);
         tryAttack();
+        // TODO: tryNuke(); works right now but very primitive
 
     }
 
@@ -247,6 +248,30 @@ public class Sage extends MyRobot {
             }
         }
     }
+
+    //TODO: works but very simple and idk how useful rn
+    /*void tryNuke()
+    {
+        int enemyCount = 0;
+        try {
+            if(rc.isActionReady()) {
+
+
+                    // only consider offensive units
+                    if (nearbyEnemies.length > 3)
+                    {
+                        rc.envision(AnomalyType.CHARGE);
+                        System.err.println("KABOOM");
+                    }
+                }
+
+
+        }
+        catch (Throwable t)
+        {
+            t.printStackTrace();
+        }
+    }*/
 
     /*boolean goToEnemyHQ(){
         MapLocation ans = null;
