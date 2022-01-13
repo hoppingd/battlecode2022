@@ -50,7 +50,7 @@ public class Soldier extends MyRobot {
 
     }
 
-    void tryAttack(){ // shoot lowest health with dist as tiebreaker
+    void tryAttack(){ // shoot lowest health with dist as tiebreaker TODO: prioritize soldiers
         if (attacked) return;
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
         MapLocation myLoc = rc.getLocation();
@@ -187,7 +187,7 @@ public class Soldier extends MyRobot {
         MapLocation myLoc = rc.getLocation();
         int lowestHealth = 40000;
         for (RobotInfo enemy : nearbyEnemies) {
-            //TODO: improve logic
+            //TODO: improve logic, don't just flee from first enemy seen
             int myForcesCount = rc.getHealth();
             RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, ALLY_FORCES_RANGE, myTeam);
             for (RobotInfo r : myForces) {
@@ -196,7 +196,6 @@ public class Soldier extends MyRobot {
                 }
             }
             int enemyForcesCount = 0;
-            if (enemy.type.canAttack()) enemyForcesCount = enemy.health;
             RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
             for (RobotInfo r : enemyForces) {
                 if (r.type.canAttack()) {
@@ -233,7 +232,7 @@ public class Soldier extends MyRobot {
             for (Direction dir : fleeDirections) {
                 MapLocation prospect = myLoc.add(dir);
                 if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
-                if (prospect.distanceSquaredTo(enemy) > myLoc.distanceSquaredTo(enemy)) {
+                if (prospect.distanceSquaredTo(enemy) > d1) {
                     int r = rc.senseRubble(prospect);
                     if (r < bestRubble) {
                         bestLoc = prospect;

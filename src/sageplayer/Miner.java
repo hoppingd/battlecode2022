@@ -16,7 +16,6 @@ public class Miner extends MyRobot {
     };
 
     static final int MIN_LEAD_TO_MINE = 6;
-    static final int ALLY_FORCES_RANGE = 29;
 
     Direction[] dirs = Direction.allDirections();
     int H, W;
@@ -48,7 +47,7 @@ public class Miner extends MyRobot {
     MapLocation moveInCombat() {
         for (RobotInfo enemy : nearbyEnemies) {
             //sense enemyArchons
-            if (enemy.getType() == RobotType.ARCHON) {
+            if (enemy.type == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(enemy);
                 try {
                     if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 12) { // sense not rush
@@ -62,24 +61,23 @@ public class Miner extends MyRobot {
             if (!enemy.type.canAttack()) continue;
             //TODO: only consider combat units, with more weight given to watchtowers
             int myForcesCount = 0;
-            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, ALLY_FORCES_RANGE, myTeam);
+            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, myTeam);
             for (RobotInfo r : myForces) {
                 if (r.type.canAttack()) {
                     myForcesCount += r.health;
                 }
             }
-            int enemyForcesCount = enemy.health;
+            int enemyForcesCount = 0;
             RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
             for (RobotInfo r : enemyForces) {
                 if (r.type.canAttack()) {
                     enemyForcesCount += r.health;
                 }
             }
-            if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer
-                if (comm.HQloc != null) {
-                    explore.reset();
-                    return flee(enemy.location); //for now we naively path home
-                }
+
+            if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer TODO: flee from highest enemyforcescount
+                explore.reset();
+                return flee(enemy.location);
             }
         }
         return null;
@@ -95,7 +93,7 @@ public class Miner extends MyRobot {
             for (Direction dir : fleeDirections) {
                 MapLocation prospect = myLoc.add(dir);
                 if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
-                if (prospect.distanceSquaredTo(enemy) > myLoc.distanceSquaredTo(enemy)) {
+                if (prospect.distanceSquaredTo(enemy) > d1) {
                     int r = rc.senseRubble(prospect);
                     if (r < bestRubble) {
                         bestLoc = prospect;
@@ -108,6 +106,7 @@ public class Miner extends MyRobot {
         } catch (Throwable t) {
             t.printStackTrace();
         }
+        System.err.println("miner fleeing at " + myLoc + " fleeing " + enemy + " to " + bestLoc);
         return bestLoc;
     }
 

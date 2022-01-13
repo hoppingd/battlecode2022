@@ -16,7 +16,6 @@ public class Sage extends MyRobot {
     };
 
     static final int LATTICE_CONGESTION = 0;
-    static final int ALLY_FORCES_RANGE = 29;
 
     int birthday;
     int H, W;
@@ -217,7 +216,7 @@ public class Sage extends MyRobot {
             for (Direction dir : fleeDirections) {
                 MapLocation prospect = myLoc.add(dir);
                 if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
-                if (prospect.distanceSquaredTo(enemy) > myLoc.distanceSquaredTo(enemy)) {
+                if (prospect.distanceSquaredTo(enemy) > d1) {
                     int r = rc.senseRubble(prospect);
                     if (r < bestRubble) {
                         bestLoc = prospect;
