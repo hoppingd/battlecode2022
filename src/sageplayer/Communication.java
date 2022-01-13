@@ -27,8 +27,9 @@
 // [26] Map Lead Score: score
 // [27] Spawn counter = count
 // [28] Crunch index = idx
+// [29] isBuilderBuilt = 0|1
 
-package advancedplayer;
+package sageplayer;
 
 import battlecode.common.GameConstants;
 import battlecode.common.MapLocation;
@@ -56,8 +57,8 @@ public class Communication {
     //P3: disintegrate builders to start lead engine
     //P4: start stockpiling lead for watchtowers and laboratory
     static final int P2_START = 80;
-    static final int P3_START = 400; //survived rush, hopefully
-    static final int P4_START = 500;
+    static final int P3_START = 200; //survived rush, hopefully
+    static final int P4_START = 1000;
     static final int P4_SAVINGS = 325;
 
     static final int HIGH_LEAD_THRESHOLD = 2000;
@@ -140,6 +141,23 @@ public class Communication {
         }
     }
 
+    boolean isBuilderBuilt () {
+        int bit = 0;
+        try {
+            bit = rc.readSharedArray(29);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bit == 1;
+    }
+
+    void setBuilderBuilt () {
+        try {
+            rc.writeSharedArray(29, 1);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
     // writes to first available archon location. also writes lead score and sets spawnid.
     void writeAllyArchonLocation(int leadScore) {
         try {

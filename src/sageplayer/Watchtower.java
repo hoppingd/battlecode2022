@@ -1,4 +1,4 @@
-package advancedplayer;
+package sageplayer;
 
 import battlecode.common.*;
 

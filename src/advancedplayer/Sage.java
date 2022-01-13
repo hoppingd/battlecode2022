@@ -13,7 +13,6 @@ public class Sage extends MyRobot {
 
     MapLocation nearestCorner;
     int task = 0;
-    int crunchIdx = 0;
     RobotInfo[] nearbyEnemies;
     boolean attacked = false;
     double mapLeadScore;
@@ -130,30 +129,32 @@ public class Sage extends MyRobot {
                 break;
             }
             case 4: { // crunch
-                task = comm.getTask();
                 MapLocation target = moveInCombat();
                 comm.readEnemyArchonLocations();
+                int crunchIdx = comm.getCrunchIdx();
                 if (comm.enemyArchons[crunchIdx] != null) {
                     if (target == null) {
                         target = comm.enemyArchons[crunchIdx];
                     }
                     bfs.move(target);
                     try {
-                        if (rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx])) {
-                            if (rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) {
+                        if (rc.canSenseLocation(comm.enemyArchons[crunchIdx])) {
+                            boolean targetInRange = rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx]);
+                            if (!targetInRange || rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) { // archon is dead or has moved
                                 comm.wipeEnemyArchonLocation(crunchIdx);
-                                crunchIdx = (crunchIdx + 1) % comm.numArchons;
+                                comm.incCrunchIdx();
                             }
+                            // if archon, don't update crunch index
                         }
                     } catch (Throwable t) {
                         t.printStackTrace();
                     }
                 }
                 else {
+                    comm.incCrunchIdx(); // we are checking the wrong index, so increment
                     if (target == null) {
                         target = explore.getExploreTarget();
                     }
-                    crunchIdx = (crunchIdx + 1) % comm.numArchons;
                     bfs.move(target);
                 }
                 senseEnemyArchons();
@@ -171,7 +172,6 @@ public class Sage extends MyRobot {
 
     //TODO: improve
     MapLocation moveInCombat() {
-        if (!rc.isActionReady()) return comm.HQloc; // flee;
         MapLocation pursuitTarget = null;
         int lowestHealth = 40000;
         for (RobotInfo enemy : nearbyEnemies) {
@@ -185,7 +185,10 @@ public class Sage extends MyRobot {
                 }
             }
             int enemyForcesCount = 0;
-            if (enemy.type.canAttack()) enemyForcesCount = enemy.health;
+            if (enemy.type.canAttack()) {
+                enemyForcesCount = enemy.health;
+                if (!rc.isActionReady()) return comm.HQloc; // flee;
+            }
             RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SAGE.visionRadiusSquared, enemyTeam);
             for (RobotInfo r : enemyForces) {
                 if (r.type.canAttack()) {
@@ -296,7 +299,13 @@ public class Sage extends MyRobot {
         else {
             y = H1;
         }
-        return new MapLocation(x,y);
+        MapLocation nearestCorner = new MapLocation(x,y);
+        int d1 = comm.HQloc.distanceSquaredTo(nearestCorner);
+        // if not near corner, build around HQ
+        if (comm.HQloc.distanceSquaredTo(new MapLocation(x, H1/2)) < d1 || comm.HQloc.distanceSquaredTo(new MapLocation(W1/2, y)) < d1) {
+            nearestCorner = comm.HQloc;
+        }
+        return nearestCorner;
     }
 }
 

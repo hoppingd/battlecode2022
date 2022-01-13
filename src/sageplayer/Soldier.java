@@ -1,8 +1,19 @@
-package advancedplayer;
+package sageplayer;
 
 import battlecode.common.*;
 
 public class Soldier extends MyRobot {
+
+    static final Direction[] fleeDirections = {
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
 
     static final int LATTICE_CONGESTION = 0;
     static final int ALLY_FORCES_RANGE = 29;
@@ -39,16 +50,17 @@ public class Soldier extends MyRobot {
 
     }
 
-    void tryAttack(){ // shoot lowest health with dist as tiebreaker
+    void tryAttack(){ // shoot lowest health with dist as tiebreaker TODO: prioritize soldiers
         if (attacked) return;
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
+        MapLocation myLoc = rc.getLocation();
         MapLocation bestLoc = null;
         int bestHealth = 10000;
         int bestDist = 10000;
         for (RobotInfo r : enemies) {
             MapLocation enemyLoc = r.getLocation();
             if (rc.canAttack(enemyLoc)) {
-                int dist = comm.HQloc.distanceSquaredTo(enemyLoc);
+                int dist = myLoc.distanceSquaredTo(enemyLoc);
                 if (r.health < bestHealth) {
                     bestHealth = r.health;
                     bestDist = dist;
@@ -79,7 +91,10 @@ public class Soldier extends MyRobot {
             task = comm.getTask();
         }
         switch (task) {
-            case 0:
+            case 0: {// scout
+
+                break;
+            }
             case 1: {// defensive lattice
                 task = comm.getTask(); // update task in case of emergency or mass attack
                 /* chase code
@@ -169,9 +184,10 @@ public class Soldier extends MyRobot {
     //TODO: improve
     MapLocation moveInCombat() {
         MapLocation pursuitTarget = null;
+        MapLocation myLoc = rc.getLocation();
         int lowestHealth = 40000;
         for (RobotInfo enemy : nearbyEnemies) {
-            //TODO: improve logic
+            //TODO: improve logic, don't just flee from first enemy seen
             int myForcesCount = rc.getHealth();
             RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, ALLY_FORCES_RANGE, myTeam);
             for (RobotInfo r : myForces) {
@@ -180,7 +196,6 @@ public class Soldier extends MyRobot {
                 }
             }
             int enemyForcesCount = 0;
-            if (enemy.type.canAttack()) enemyForcesCount = enemy.health;
             RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
             for (RobotInfo r : enemyForces) {
                 if (r.type.canAttack()) {
@@ -188,11 +203,17 @@ public class Soldier extends MyRobot {
                 }
             }
             if (myForcesCount < enemyForcesCount) {
-                return comm.HQloc; //for now we naively path home
+                explore.reset();
+                return flee(enemy.location); // lowest rubble tile away from enemy
             }
             else if (enemy.type.canAttack() && enemy.health < lowestHealth) {
                 lowestHealth = enemy.health;
-                pursuitTarget = rc.getLocation(); // stay put if winning, don't risk pursuin
+                // if vulnerable enemy out of range, pursue
+                if(myLoc.distanceSquaredTo(enemy.location) > RobotType.SOLDIER.actionRadiusSquared) {
+                    pursuitTarget = enemy.location;
+                } else {
+                    pursuitTarget = rc.getLocation(); // stay put if within range
+                }
             }
             else if (enemyForcesCount == 0) {
                 pursuitTarget = enemy.location; // no nearby forces? harass.
@@ -201,12 +222,38 @@ public class Soldier extends MyRobot {
         return pursuitTarget;
     }
 
+    // flees to the lowest rubble tile away from enemy
+    MapLocation flee(MapLocation enemy) {
+        MapLocation myLoc = rc.getLocation();
+        int bestRubble = GameConstants.MAX_RUBBLE;
+        MapLocation bestLoc = null;
+        int d1 = myLoc.distanceSquaredTo(enemy);
+        try {
+            for (Direction dir : fleeDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
+                if (prospect.distanceSquaredTo(enemy) > d1) {
+                    int r = rc.senseRubble(prospect);
+                    if (r < bestRubble) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                    //TODO: tiebreak with distance
+                }
+
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bestLoc;
+    }
+
     void senseEnemyArchons() { // check for enemy archon and write
         for (RobotInfo r : nearbyEnemies) {
             if (r.getType() == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(r);
                 try {
-                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.SOLDIER.visionRadiusSquared).length > 12) { // sense not rush
+                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.SOLDIER.visionRadiusSquared).length > 10) { // sense not rush
                         comm.setTask(4); // RUSH!
                     }
                 } catch (Throwable t) {

@@ -1,4 +1,4 @@
-package advancedplayer;
+package sageplayer;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
@@ -129,12 +129,14 @@ public class Archon extends MyRobot {
     void checkForAttackers() {
         if (!arrived) return;
         RobotInfo[] robots = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
-        if (robots.length > 1) {
-            comm.setEmergencyLoc(robots[0].getLocation());
-            comm.setTask(comm.EMERGENCY);
-            return;
+        for (RobotInfo r : robots) {
+            if (r.getType().canAttack()) {
+                comm.setEmergencyLoc(r.location);
+                comm.setTask(comm.EMERGENCY);
+                return;
+            }
         }
-        if (task == comm.EMERGENCY) comm.setTask(comm.EXPLORE);
+        if (task == comm.EMERGENCY && rc.canSenseLocation(comm.getEmergencyLoc())) comm.setTask(comm.EXPLORE);
     }
 
     void tryMove(){
@@ -179,9 +181,6 @@ public class Archon extends MyRobot {
         }
         // PHASE 2
         else if (currRound < comm.P3_START) {
-            if (task == comm.EMERGENCY) {
-                return false; // emergency, build soldiers
-            }
             int buildCode = comm.readBuildCode(2); // alternate soldiers and miners
             if (buildCode == 0) {
                 comm.writeBuildCode(2, 1);
@@ -203,10 +202,13 @@ public class Archon extends MyRobot {
         // PHASE 4
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            int buildCode = comm.readBuildCode(4);
-            if (buildCode == 0 && (currLead > comm.P4_SAVINGS + RobotType.MINER.buildCostLead || (comm.labIsBuilt() && currLead > RobotType.WATCHTOWER.buildCostLead + RobotType.BUILDER.buildCostLead))) {
-                comm.writeBuildCode(4,1);
-                return true;
+            if (comm.getSpawnCount() % 3 == 0) {
+                if (comm.labIsBuilt()) return true;
+                if (!comm.isBuilderBuilt()) {
+                    if (currLead >= RobotType.BUILDER.buildCostLead + RobotType.MINER.buildCostLead) return true;
+                    return false;
+                }
+                if (currLead >= RobotType.LABORATORY.buildCostLead + RobotType.MINER.buildCostLead) return true;
             }
         }
         return false;
@@ -232,11 +234,7 @@ public class Archon extends MyRobot {
         // PHASE 4
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            int buildCode = comm.readBuildCode(4);
-            if (buildCode == 1 && (currLead > comm.P4_SAVINGS + RobotType.BUILDER.buildCostLead || (comm.labIsBuilt() && currLead > RobotType.WATCHTOWER.buildCostLead))) {
-                comm.writeBuildCode(4,2);
-                return true;
-            }
+            if (!comm.isBuilderBuilt()) return true;
         }
         return false;
     }
@@ -280,11 +278,13 @@ public class Archon extends MyRobot {
         }
         // PHASE 4
         else {
-            int buildCode = comm.readBuildCode(4);
-            if ((buildCode == 2 && (currLead > comm.P4_SAVINGS + RobotType.SOLDIER.buildCostLead || (comm.labIsBuilt() && currLead > RobotType.WATCHTOWER.buildCostLead + RobotType.BUILDER.buildCostLead)))) {
-                comm.writeBuildCode(4,0);
-                return true;
+            if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
+            if (comm.labIsBuilt()) return true;
+            if (!comm.isBuilderBuilt()) {
+                if (currLead >= RobotType.BUILDER.buildCostLead + RobotType.SOLDIER.buildCostLead) return true;
+                return false;
             }
+            if (currLead >= RobotType.LABORATORY.buildCostLead + RobotType.SOLDIER.buildCostLead) return true;
         }
         return false;
     }
@@ -344,6 +344,7 @@ public class Archon extends MyRobot {
                     rc.buildRobot(RobotType.BUILDER, myLoc.directionTo(bestLoc));
                     comm.incSpawnCounter();
                     builderCount++;
+                    comm.setBuilderBuilt();
                     return true;
                 }
             } catch (Throwable t) {

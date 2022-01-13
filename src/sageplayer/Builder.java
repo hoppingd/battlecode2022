@@ -1,4 +1,4 @@
-package advancedplayer;
+package sageplayer;
 
 import battlecode.common.*;
 
@@ -106,7 +106,7 @@ public class Builder extends MyRobot {
 
     // TODO: should be way smarter with where we build watchtowers
     void tryBuild(){
-        if (currRound < comm.P4_START && HIGH_LEAD_MAP) { // we built a miner early, so must be high lead map. we'll defend with watchtowers
+        if (HIGH_LEAD_MAP) { // we built a miner early, so must be high lead map. we'll defend with watchtowers
             Direction bestDir = null;
             int bestRubble = GameConstants.MAX_RUBBLE;
             MapLocation myLoc = rc.getLocation();
@@ -160,7 +160,7 @@ public class Builder extends MyRobot {
                 }
             }
         }
-        else if(watchCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.WATCHTOWER.buildCostLead && currRound > comm.P4_START)
+        /*else if(watchCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.WATCHTOWER.buildCostLead && currRound > comm.P4_START)
         {
             Direction bestDir = null;
             int bestRubble = GameConstants.MAX_RUBBLE;
@@ -187,7 +187,7 @@ public class Builder extends MyRobot {
             } catch (Throwable t) {
                 t.printStackTrace();
             }
-        }
+        }*/
     }
 
     // TODO: disintegrate if not emergency and havent built in x turns
@@ -197,9 +197,6 @@ public class Builder extends MyRobot {
         if (task !=2 && ((LOW_LEAD_MAP && currRound < comm.P4_START) || (currRound > comm.P4_START && watchRepairedCount > 0))) {
             target = getMineProspect();
         }
-        else {
-            target = moveInCombat();
-        }
 
         if (target == null && !comm.labIsBuilt() && currRound > comm.P4_START) {
             if (!rc.getLocation().isAdjacentTo(nearestCorner)) target = nearestCorner;
@@ -207,7 +204,11 @@ public class Builder extends MyRobot {
         if (target == null) target = getHurtRobot();
         //check to see if in danger
         if (target != null) {
+            MapLocation myLoc = rc.getLocation();
             bfs.move(target);
+            if (myLoc == rc.getLocation()) { // avoiding intersection bug
+                bfs.path.move(target);
+            }
         }
         else {
             if (HIGH_LEAD_MAP) {
@@ -219,39 +220,11 @@ public class Builder extends MyRobot {
         }
     }
 
-    //TODO: improve. try to finish towers.
-    MapLocation moveInCombat() {
-        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
-        for (RobotInfo enemy : enemies) {
-            // only consider offensive units
-            if (!enemy.type.canAttack()) continue;
-            //TODO: only consider combat units, with more weight given to watchtowers
-            int myForcesCount = 0;
-            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, ALLY_FORCES_RANGE, myTeam);
-            for (RobotInfo r : myForces) {
-                if (r.type.canAttack()) {
-                    myForcesCount += r.health;
-                }
-            }
-            int enemyForcesCount = enemy.health;
-            RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
-            for (RobotInfo r : enemyForces) {
-                if (r.type.canAttack()) {
-                    enemyForcesCount += r.health;
-                }
-            }
-            if (myForcesCount < enemyForcesCount * 2) {
-                return comm.HQloc; //for now we naively path home
-            }
-        }
-        return null;
-    }
-
     void tryRepairBuilding() {
         RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
         MapLocation bestRepair = null;
         int bestHealth = 0;
-        for (RobotInfo r : allies){
+        for (RobotInfo r : allies) {
             MapLocation allyLoc = r.getLocation();
             if (rc.canRepair(allyLoc)){
                 int health = r.getHealth();
@@ -276,6 +249,7 @@ public class Builder extends MyRobot {
         for (RobotInfo r : allies){
             MapLocation allyLoc = r.getLocation();
             int health = r.getHealth();
+            if (r.getMode() == RobotMode.PROTOTYPE) return r.location; // TODO: IMPROVE
             if (r.getHealth() < r.getType().health && health < bestHealth) {
                 bestHealth = health;
                 bestRepair = allyLoc;

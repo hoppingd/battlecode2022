@@ -1,13 +1,21 @@
-package advancedplayer;
+package sageplayer;
 
 import battlecode.common.*;
 
 public class Miner extends MyRobot {
 
-
+    static final Direction[] fleeDirections = {
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
 
     static final int MIN_LEAD_TO_MINE = 6;
-    static final int ALLY_FORCES_RANGE = 29;
 
     Direction[] dirs = Direction.allDirections();
     int H, W;
@@ -39,7 +47,7 @@ public class Miner extends MyRobot {
     MapLocation moveInCombat() {
         for (RobotInfo enemy : nearbyEnemies) {
             //sense enemyArchons
-            if (enemy.getType() == RobotType.ARCHON) {
+            if (enemy.type == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(enemy);
                 try {
                     if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 12) { // sense not rush
@@ -53,29 +61,62 @@ public class Miner extends MyRobot {
             if (!enemy.type.canAttack()) continue;
             //TODO: only consider combat units, with more weight given to watchtowers
             int myForcesCount = 0;
-            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, ALLY_FORCES_RANGE, myTeam);
+            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, myTeam);
             for (RobotInfo r : myForces) {
                 if (r.type.canAttack()) {
                     myForcesCount += r.health;
                 }
             }
-            int enemyForcesCount = enemy.health;
+            int enemyForcesCount = 0;
             RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
             for (RobotInfo r : enemyForces) {
                 if (r.type.canAttack()) {
                     enemyForcesCount += r.health;
                 }
             }
-            if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer
-                if (comm.HQloc != null) return comm.HQloc; //for now we naively path home
+
+            if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer TODO: flee from highest enemyforcescount
+                explore.reset();
+                return flee(enemy.location);
             }
         }
         return null;
     }
 
+    // flees to the lowest rubble tile away from enemy
+    MapLocation flee(MapLocation enemy) {
+        MapLocation myLoc = rc.getLocation();
+        int bestRubble = GameConstants.MAX_RUBBLE;
+        MapLocation bestLoc = null;
+        int d1 = myLoc.distanceSquaredTo(enemy);
+        try {
+            for (Direction dir : fleeDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
+                if (prospect.distanceSquaredTo(enemy) > d1) {
+                    int r = rc.senseRubble(prospect);
+                    if (r < bestRubble) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                    //TODO: tiebreak with distance
+                }
+
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        System.err.println("miner fleeing at " + myLoc + " fleeing " + enemy + " to " + bestLoc);
+        return bestLoc;
+    }
+
     // TODO: improve
     void tryMine(){
         MapLocation myLoc = rc.getLocation();
+        int leadToLeave = 1;
+        if (comm.HQloc != null && myLoc.distanceSquaredTo(comm.HQloc) > myLoc.distanceSquaredTo(comm.getHQOpposite())) {
+            leadToLeave = 0;
+        }
         try {
             for (Direction dir : dirs) {
                 MapLocation prospect = myLoc.add(dir);
@@ -83,7 +124,7 @@ public class Miner extends MyRobot {
                 int lead = rc.senseLead(prospect);
                 int gold = rc.senseGold(prospect); //adds max of 45 bytecode
 
-                while (lead > 1) {
+                while (lead > leadToLeave) {
                     if (rc.isActionReady()) {
                         rc.mineLead(prospect);
                         lead--;
@@ -114,7 +155,7 @@ public class Miner extends MyRobot {
             bfs.move(loc);
             return;
         }
-        loc = explore.getExploreTarget(); // TODO: try to explore different directions so we dont get unlucky
+        loc = explore.getExplore2Target(); // use alternate function to find points of interest
         bfs.move(loc);
         return;
     }
