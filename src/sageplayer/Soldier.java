@@ -184,6 +184,7 @@ public class Soldier extends MyRobot {
     //TODO: improve
     MapLocation moveInCombat() {
         MapLocation pursuitTarget = null;
+        MapLocation myLoc = rc.getLocation();
         int lowestHealth = 40000;
         for (RobotInfo enemy : nearbyEnemies) {
             //TODO: improve logic
@@ -208,7 +209,12 @@ public class Soldier extends MyRobot {
             }
             else if (enemy.type.canAttack() && enemy.health < lowestHealth) {
                 lowestHealth = enemy.health;
-                pursuitTarget = rc.getLocation(); // stay put if winning, don't risk pursuin
+                // if vulnerable enemy out of range, pursue
+                if(myLoc.distanceSquaredTo(enemy.location) > RobotType.SOLDIER.actionRadiusSquared) {
+                    pursuitTarget = enemy.location;
+                } else {
+                    pursuitTarget = rc.getLocation(); // stay put if within range
+                }
             }
             else if (enemyForcesCount == 0) {
                 pursuitTarget = enemy.location; // no nearby forces? harass.

@@ -62,6 +62,7 @@ public class Sage extends MyRobot {
             MapLocation enemyLoc = r.getLocation();
             if (rc.canAttack(enemyLoc)) {
                 int dist = myLoc.distanceSquaredTo(enemyLoc);
+                //TODO: fix
                 if (r.health > RobotType.SAGE.damage && r.health < bestHealth) {
                     bestHealth = r.health;
                     bestDist = dist;
@@ -186,39 +187,19 @@ public class Sage extends MyRobot {
     //TODO: improve
     MapLocation moveInCombat() {
         MapLocation pursuitTarget = null;
+        MapLocation myLoc = rc.getLocation();
         int lowestHealth = 40000;
         for (RobotInfo enemy : nearbyEnemies) {
             // only consider offensive units
-            //TODO: only consider combat units, with more weight given to watchtowers
-            int myForcesCount = rc.getHealth();
-            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, ALLY_FORCES_RANGE, myTeam);
-            for (RobotInfo r : myForces) {
-                if (r.type.canAttack()) {
-                    myForcesCount += r.health;
-                }
-            }
-            int enemyForcesCount = 0;
+            //TODO: consider sage range
             if (enemy.type.canAttack()) {
-                enemyForcesCount = enemy.health;
-                if (!rc.isActionReady()) {
+                if (!rc.isActionReady() && myLoc.distanceSquaredTo(enemy.location) <= enemy.type.visionRadiusSquared) {
                     explore.reset();
                     return flee(enemy.location); // flee;
                 }
             }
-            RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SAGE.visionRadiusSquared, enemyTeam);
-            for (RobotInfo r : enemyForces) {
-                if (r.type.canAttack()) {
-                    enemyForcesCount += r.health;
-                }
-            }
-            if (myForcesCount < enemyForcesCount) {
-                return comm.HQloc; //for now we naively path home
-            }
-            else if (lowestHealth > RobotType.SAGE.damage && enemy.health < lowestHealth) { //consider staying put if winning
-                lowestHealth = enemy.health;
-                pursuitTarget = enemy.location;
-            }
-            else if (lowestHealth < RobotType.SAGE.damage && enemy.health > lowestHealth) {
+            // TODO: fix
+            if ((lowestHealth > RobotType.SAGE.damage && enemy.health < lowestHealth) || (lowestHealth < RobotType.SAGE.damage && enemy.health > lowestHealth)) { //consider staying put if winning
                 lowestHealth = enemy.health;
                 pursuitTarget = enemy.location;
             }
