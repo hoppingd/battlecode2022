@@ -4,7 +4,16 @@ import battlecode.common.*;
 
 public class Miner extends MyRobot {
 
-
+    static final Direction[] fleeDirections = {
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
 
     static final int MIN_LEAD_TO_MINE = 6;
     static final int ALLY_FORCES_RANGE = 29;
@@ -67,10 +76,39 @@ public class Miner extends MyRobot {
                 }
             }
             if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer
-                if (comm.HQloc != null) return comm.HQloc; //for now we naively path home
+                if (comm.HQloc != null) {
+                    explore.reset();
+                    return flee(enemy.location); //for now we naively path home
+                }
             }
         }
         return null;
+    }
+
+    // flees to the lowest rubble tile away from enemy
+    MapLocation flee(MapLocation enemy) {
+        MapLocation myLoc = rc.getLocation();
+        int bestRubble = GameConstants.MAX_RUBBLE;
+        MapLocation bestLoc = null;
+        int d1 = myLoc.distanceSquaredTo(enemy);
+        try {
+            for (Direction dir : fleeDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
+                if (prospect.distanceSquaredTo(enemy) > myLoc.distanceSquaredTo(enemy)) {
+                    int r = rc.senseRubble(prospect);
+                    if (r < bestRubble) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                    //TODO: tiebreak with distance
+                }
+
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bestLoc;
     }
 
     // TODO: improve
@@ -118,7 +156,7 @@ public class Miner extends MyRobot {
             bfs.move(loc);
             return;
         }
-        loc = explore.getExploreTarget(); // TODO: try to explore different directions so we dont get unlucky
+        loc = explore.getExplore2Target(); // use alternate function to find points of interest
         bfs.move(loc);
         return;
     }

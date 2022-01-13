@@ -4,6 +4,17 @@ import battlecode.common.*;
 
 public class Soldier extends MyRobot {
 
+    static final Direction[] fleeDirections = {
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
+
     static final int LATTICE_CONGESTION = 0;
     static final int ALLY_FORCES_RANGE = 29;
 
@@ -42,13 +53,14 @@ public class Soldier extends MyRobot {
     void tryAttack(){ // shoot lowest health with dist as tiebreaker
         if (attacked) return;
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
+        MapLocation myLoc = rc.getLocation();
         MapLocation bestLoc = null;
         int bestHealth = 10000;
         int bestDist = 10000;
         for (RobotInfo r : enemies) {
             MapLocation enemyLoc = r.getLocation();
             if (rc.canAttack(enemyLoc)) {
-                int dist = comm.HQloc.distanceSquaredTo(enemyLoc);
+                int dist = myLoc.distanceSquaredTo(enemyLoc);
                 if (r.health < bestHealth) {
                     bestHealth = r.health;
                     bestDist = dist;
@@ -79,7 +91,10 @@ public class Soldier extends MyRobot {
             task = comm.getTask();
         }
         switch (task) {
-            case 0:
+            case 0: {// scout
+
+                break;
+            }
             case 1: {// defensive lattice
                 task = comm.getTask(); // update task in case of emergency or mass attack
                 /* chase code
@@ -188,7 +203,8 @@ public class Soldier extends MyRobot {
                 }
             }
             if (myForcesCount < enemyForcesCount) {
-                return comm.HQloc; //for now we naively path home
+                explore.reset();
+                return flee(enemy.location); // lowest rubble tile away from enemy
             }
             else if (enemy.type.canAttack() && enemy.health < lowestHealth) {
                 lowestHealth = enemy.health;
@@ -199,6 +215,32 @@ public class Soldier extends MyRobot {
             }
         }
         return pursuitTarget;
+    }
+
+    // flees to the lowest rubble tile away from enemy
+    MapLocation flee(MapLocation enemy) {
+        MapLocation myLoc = rc.getLocation();
+        int bestRubble = GameConstants.MAX_RUBBLE;
+        MapLocation bestLoc = null;
+        int d1 = myLoc.distanceSquaredTo(enemy);
+        try {
+            for (Direction dir : fleeDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
+                if (prospect.distanceSquaredTo(enemy) > myLoc.distanceSquaredTo(enemy)) {
+                    int r = rc.senseRubble(prospect);
+                    if (r < bestRubble) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                    //TODO: tiebreak with distance
+                }
+
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bestLoc;
     }
 
     void senseEnemyArchons() { // check for enemy archon and write

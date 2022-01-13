@@ -4,6 +4,17 @@ import battlecode.common.*;
 
 public class Sage extends MyRobot {
 
+    static final Direction[] fleeDirections = {
+            Direction.NORTH,
+            Direction.NORTHEAST,
+            Direction.EAST,
+            Direction.SOUTHEAST,
+            Direction.SOUTH,
+            Direction.SOUTHWEST,
+            Direction.WEST,
+            Direction.NORTHWEST,
+    };
+
     static final int LATTICE_CONGESTION = 0;
     static final int ALLY_FORCES_RANGE = 29;
 
@@ -42,13 +53,15 @@ public class Sage extends MyRobot {
     void tryAttack(){ // shoot lowest health with dist as tiebreaker
         if (attacked) return;
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SAGE.actionRadiusSquared, enemyTeam);
+        MapLocation myLoc = rc.getLocation();
         MapLocation bestLoc = null;
         int bestHealth = 10000;
         int bestDist = 10000;
         for (RobotInfo r : enemies) {
+            if (!r.type.canAttack()) continue; // ignore non offensive units-- waste of 200 cd
             MapLocation enemyLoc = r.getLocation();
             if (rc.canAttack(enemyLoc)) {
-                int dist = comm.HQloc.distanceSquaredTo(enemyLoc);
+                int dist = myLoc.distanceSquaredTo(enemyLoc);
                 if (r.health > RobotType.SAGE.damage && r.health < bestHealth) {
                     bestHealth = r.health;
                     bestDist = dist;
@@ -187,7 +200,10 @@ public class Sage extends MyRobot {
             int enemyForcesCount = 0;
             if (enemy.type.canAttack()) {
                 enemyForcesCount = enemy.health;
-                if (!rc.isActionReady()) return comm.HQloc; // flee;
+                if (!rc.isActionReady()) {
+                    explore.reset();
+                    return flee(enemy.location); // flee;
+                }
             }
             RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SAGE.visionRadiusSquared, enemyTeam);
             for (RobotInfo r : enemyForces) {
@@ -208,6 +224,32 @@ public class Sage extends MyRobot {
             }
         }
         return pursuitTarget;
+    }
+
+    // flees to the lowest rubble tile away from enemy
+    MapLocation flee(MapLocation enemy) {
+        MapLocation myLoc = rc.getLocation();
+        int bestRubble = GameConstants.MAX_RUBBLE;
+        MapLocation bestLoc = null;
+        int d1 = myLoc.distanceSquaredTo(enemy);
+        try {
+            for (Direction dir : fleeDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
+                if (prospect.distanceSquaredTo(enemy) > myLoc.distanceSquaredTo(enemy)) {
+                    int r = rc.senseRubble(prospect);
+                    if (r < bestRubble) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                    //TODO: tiebreak with distance
+                }
+
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bestLoc;
     }
 
     void senseEnemyArchons() { // check for enemy archon and write
