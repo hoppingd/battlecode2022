@@ -124,6 +124,7 @@ public class Sage extends MyRobot {
                 break;
             }
             case 2: {// emergency
+                task = comm.getTask();
                 MapLocation target = moveInCombat();
                 if (target == null) {
                     target = comm.getEmergencyLoc();
