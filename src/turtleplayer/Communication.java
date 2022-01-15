@@ -59,7 +59,7 @@ public class Communication {
     //P4: start stockpiling lead for watchtowers and laboratory
     static final int P2_START = 80;
     static final int P3_START = 200; //survived rush, hopefully
-    static final int P4_START = 1000;
+    static final int P4_START = 1200;
     static final int P4_SAVINGS = 325;
 
     static final int HIGH_LEAD_THRESHOLD = 2000;
@@ -295,7 +295,6 @@ public class Communication {
                 }
                 else {
                     enemyArchons[i - ENEMY_ARCHON_ARRAY_START] = null;
-                    return;
                 }
             }
 

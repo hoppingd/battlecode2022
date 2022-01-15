@@ -27,6 +27,7 @@ public class Soldier extends MyRobot {
     int task = 0;
     RobotInfo[] nearbyEnemies;
     double mapLeadScore;
+    MapLocation target;
 
     public Soldier(RobotController rc){
         super(rc);
@@ -42,8 +43,10 @@ public class Soldier extends MyRobot {
     }
 
     public void play() {
+        target = moveInCombat();
         reinforceLoc = comm.readReinforcements();
-        tryAttack();
+        // if we are fleeing attack first, otherwise wait to move onto lower rubble tile
+        if (target == null || target == comm.HQloc || target == rc.getLocation()) tryAttack();
         tryMove();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         tryAttack();
@@ -64,26 +67,31 @@ public class Soldier extends MyRobot {
             }
         }
         int bestHealth = 10000;
-        int bestDist = 10000;
+        int bestRubble = GameConstants.MAX_RUBBLE;
         for (RobotInfo r : enemies) {
             MapLocation enemyLoc = r.getLocation();
-            int dist = myLoc.distanceSquaredTo(enemyLoc);
             boolean isAttacker = r.type.canAttack();
             // if there are attackers, ignore all non-attackers and reset variables
             if (!isAttacker && attackerInRange) continue;
+            int rubble = GameConstants.MAX_RUBBLE;
+            try {
+                rubble = rc.senseRubble(r.location);
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
             if (isAttacker && !attackerInRange) {
                 bestHealth = 10000;
-                bestDist = 10000;
+                bestRubble = rubble;
                 attackerInRange = true;
             }
-            // shoot lowest health with dist as tiebreaker
+            // shoot lowest health with rubble as tiebreaker
             if (r.health < bestHealth) {
                 bestHealth = r.health;
-                bestDist = dist;
+                bestRubble = rubble;
                 bestLoc = enemyLoc;
             }
-            else if (r.health == bestHealth && dist < bestDist) {
-                bestDist = dist;
+            else if (r.health == bestHealth && rubble < bestRubble) {
+                bestRubble = rubble;
                 bestLoc = enemyLoc;
             }
         }
@@ -94,8 +102,6 @@ public class Soldier extends MyRobot {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-
-
     }
 
     // TODO: cleanup
@@ -118,7 +124,6 @@ public class Soldier extends MyRobot {
                     return;
 
                  */
-                MapLocation target = moveInCombat();
                 if (target != null) {
                     bfs.move(target);
                     return;
@@ -136,7 +141,6 @@ public class Soldier extends MyRobot {
             }
             case 2: {// emergency
                 task = comm.getTask();
-                MapLocation target = moveInCombat();
                 if (target == null) {
                     target = comm.getEmergencyLoc();
                 }
@@ -145,7 +149,6 @@ public class Soldier extends MyRobot {
             }
             case 3: { // explore
                 task = comm.getTask();
-                MapLocation target = moveInCombat();
                 if (target == null) {
                     target = reinforceLoc;
                 }
@@ -157,9 +160,12 @@ public class Soldier extends MyRobot {
                 break;
             }
             case 4: { // crunch TODO: improve. get lowest index or nearest non null archon location. bug when archon is destroyed but not crunching.
-                MapLocation target = moveInCombat();
+                task = comm.getTask();
                 comm.readEnemyArchonLocations();
                 int crunchIdx = comm.getCrunchIdx();
+                if (target == null) {
+                    target = reinforceLoc;
+                }
                 if (comm.enemyArchons[crunchIdx] != null) {
                     if (target == null) {
                         target = comm.enemyArchons[crunchIdx];
@@ -170,7 +176,6 @@ public class Soldier extends MyRobot {
                             boolean targetInRange = rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx]);
                             if (!targetInRange || rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) { // archon is dead or has moved
                                 comm.wipeEnemyArchonLocation(crunchIdx);
-                                comm.incCrunchIdx();
                             }
                             // if archon, don't update crunch index
                         }
@@ -224,7 +229,7 @@ public class Soldier extends MyRobot {
             if (myForcesCount < enemyForcesCount) {
                 explore.reset();
                 // don't call for overly aggressive reinforcements
-                if (myLoc.distanceSquaredTo(comm.getHQOpposite()) <= myLoc.distanceSquaredTo(comm.HQloc)) {
+                if (myForcesCount*1.5 > enemyForcesCount || myLoc.distanceSquaredTo(comm.getHQOpposite()) <= myLoc.distanceSquaredTo(comm.HQloc)) {
                     comm.callReinforcements(enemyNum, enemy.location);
                 }
                 //return flee(enemy.location); // lowest rubble tile away from enemy
@@ -235,8 +240,6 @@ public class Soldier extends MyRobot {
                 // if vulnerable enemy out of range, pursue
                 if(myForcesCount > 1.5*enemyForcesCount && myLoc.distanceSquaredTo(enemy.location) > RobotType.SOLDIER.actionRadiusSquared) {
                     pursuitTarget = enemy.location;
-                } else {
-                    pursuitTarget = rc.getLocation(); // stay put if within range
                 }
             }
             else if (enemyForcesCount == 0) {
@@ -248,9 +251,39 @@ public class Soldier extends MyRobot {
                 comm.clearReinforcements();
             }
         }
+        if (pursuitTarget != null) {
+            pursuitTarget = getGreedyAttackTile(pursuitTarget);
+        }
         return pursuitTarget;
     }
 
+    MapLocation getGreedyAttackTile(MapLocation pursuitTarget) {
+        MapLocation myLoc = rc.getLocation();
+        MapLocation bestLoc = myLoc;
+        try {
+            int bestRubble = rc.senseRubble(myLoc);
+            for (Direction dir : fleeDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!rc.canMove(dir)) continue; // reduce bytecode?
+                if (prospect.distanceSquaredTo(pursuitTarget) <= RobotType.SOLDIER.visionRadiusSquared) {
+                    int r = rc.senseRubble(prospect);
+                    if (r < bestRubble) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                    // in case of tie, try to stay at farther range
+                    else if (r == bestRubble && prospect.distanceSquaredTo(pursuitTarget) > myLoc.distanceSquaredTo(pursuitTarget)) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        System.err.println("pursuit target: " + pursuitTarget + ", greedily moved to " + bestLoc);
+        return bestLoc;
+    }
     // flees to the lowest rubble tile away from enemy
     MapLocation flee(MapLocation enemy) {
         MapLocation myLoc = rc.getLocation();
@@ -282,7 +315,7 @@ public class Soldier extends MyRobot {
             if (r.getType() == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(r);
                 try {
-                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 1000 && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense should crunch
+                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense should crunch
                         comm.setTask(4); // RUSH!
                     }
                 } catch (Throwable t) {
@@ -326,19 +359,19 @@ public class Soldier extends MyRobot {
 
     MapLocation getFreeSpace() { // soldiers will find closest free space
         MapLocation myLoc = rc.getLocation();
-        MapLocation target = null;
+        MapLocation space = null;
         try {
             MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells) { // interlinked
                 if (!rc.canSenseLocation(cell)) continue; // needed?
                 if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(cell)) { // some spacing condition
-                    if (target == null) {
-                        target = cell;
+                    if (space == null) {
+                        space = cell;
                     }
                     // closer than target and further from corner than me
-                    else if (cell.distanceSquaredTo(myLoc) < target.distanceSquaredTo(myLoc))
+                    else if (cell.distanceSquaredTo(myLoc) < space.distanceSquaredTo(myLoc))
                     { // should try to build lattice away from wall/toward enemy
-                        target = cell;
+                        space = cell;
                     }
                 }
             }
@@ -346,7 +379,7 @@ public class Soldier extends MyRobot {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return target;
+        return space;
     }
 
     MapLocation getNearestCorner() {

@@ -264,6 +264,7 @@ public class Miner extends MyRobot {
 
     MapLocation getMineProspect() {
         MapLocation myLoc = rc.getLocation();
+        // consider giving up if too far away
         MapLocation target = null;
         int bestDist = 10000;
         try {

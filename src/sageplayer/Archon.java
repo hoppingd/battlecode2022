@@ -81,6 +81,9 @@ public class Archon extends MyRobot {
         comm.writeAllyArchonLocation(leadScore);
         mapCenter = new MapLocation((W - 1)/2, (H - 1)/2);
         comm.setTask(comm.EXPLORE); // for now we are ignoring scouting and starting with harass/protecting miners
+        //remove round 1000 lab
+        comm.setBuilderBuilt();
+        comm.setLabBuilt();
     }
 
     public void play() {
@@ -406,12 +409,11 @@ public class Archon extends MyRobot {
         MapLocation bestLoc = null;
         int lowestHP = 10000;
         for (RobotInfo r : allies){
-            MapLocation allyLoc = r.getLocation();
-            if (rc.canRepair(r.getLocation())){
-                int hp = r.getHealth();
+            if (rc.canRepair(r.location)){
+                int hp = r.health;
                 if (hp < lowestHP) {
                     lowestHP = hp;
-                    bestLoc = allyLoc;
+                    bestLoc = r.location;
                 }
             }
         }

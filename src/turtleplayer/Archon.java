@@ -99,13 +99,13 @@ public class Archon extends MyRobot {
             if (rc.getLocation().equals(comm.HQloc)) arrived = true;
         }
         // CRUNCH TIME
-        if (currRound >= CRUNCH_ROUND) { // if we lost an archon, we need to try to get theirs
+        if (currRound >= CRUNCH_ROUND && rc.getArchonCount() < comm.numArchons) { // if we lost an archon or have less gold, we need to try to get theirs
             comm.setTask(comm.CRUNCH);
             task = comm.CRUNCH;
         }
         // defense time
         if (currRound >= comm.P3_START) {
-            if (task != comm.CRUNCH) {
+            if (task != comm.CRUNCH && task != comm.EMERGENCY) {
                 comm.setTask(comm.LATTICE);
             }
         }
@@ -135,15 +135,18 @@ public class Archon extends MyRobot {
 
     void checkForAttackers() {
         if (!arrived) return;
+
         RobotInfo[] robots = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
-        for (RobotInfo r : robots) {
-            if (r.getType().canAttack()) {
-                comm.setEmergencyLoc(r.location);
-                comm.setTask(comm.EMERGENCY);
-                return;
+        if (task != comm.EMERGENCY) {
+            for (RobotInfo r : robots) {
+                if (r.getType().canAttack()) {
+                    comm.setEmergencyLoc(r.location);
+                    comm.setTask(comm.EMERGENCY);
+                    return;
+                }
             }
         }
-        if (task == comm.EMERGENCY && rc.canSenseLocation(comm.getEmergencyLoc())) {
+        else if (rc.canSenseLocation(comm.getEmergencyLoc())) {
             if (currRound < comm.P3_START) {
                 comm.setTask(comm.EXPLORE);
             }
@@ -195,20 +198,11 @@ public class Archon extends MyRobot {
         }
         // PHASE 2
         else if (currRound < comm.P3_START) {
-            int buildCode = comm.readBuildCode(2); // alternate soldiers and miners
-            if (buildCode == 1) {
-                comm.writeBuildCode(2, 2);
-                return true;
-            }
-            else {
-                return false;
-            }
+            return false;
         }
         // PHASE 3
         else if (currRound < comm.P4_START) {
-            int buildCode = comm.readBuildCode(3);
-            if (buildCode == 1) {
-                comm.writeBuildCode(3,2);
+            if (comm.getSpawnCount() % 5 == 0) {
                 return true;
             }
             return false;
@@ -263,33 +257,14 @@ public class Archon extends MyRobot {
         }
         // PHASE 2
         else if (currRound < comm.P3_START) {
-            int buildCode = comm.readBuildCode(2);
-            if (buildCode == 2) {
-                comm.writeBuildCode(2,0);
-                return true;
-            }
-            if (buildCode == 0) {
-                comm.writeBuildCode(2,1);
-                return true;
-            }
-            else {
-                return false;
-            }
+            return true;
         }
         // PHASE 3
         else if (currRound < comm.P4_START) {
-            int buildCode = comm.readBuildCode(3);
-            if (buildCode == 2) {
-                comm.writeBuildCode(3,0);
+            if (comm.getSpawnCount() % 5 != 0) {
                 return true;
             }
-            if (buildCode == 0) {
-                comm.writeBuildCode(3,1);
-                return true;
-            }
-            else {
-                return false;
-            }
+            return false;
         }
         // PHASE 4
         else {
@@ -422,12 +397,11 @@ public class Archon extends MyRobot {
         MapLocation bestLoc = null;
         int lowestHP = 10000;
         for (RobotInfo r : allies){
-            MapLocation allyLoc = r.getLocation();
-            if (rc.canRepair(r.getLocation())){
+            if (rc.canRepair(r.location)){
                 int hp = r.getHealth();
                 if (hp < lowestHP) {
                     lowestHP = hp;
-                    bestLoc = allyLoc;
+                    bestLoc = r.location;
                 }
             }
         }

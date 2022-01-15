@@ -16,6 +16,7 @@ public class Miner extends MyRobot {
     };
 
     static final int MIN_LEAD_TO_MINE = 6;
+    static final int DISINTEGRATE_HEALTH = 21;
 
     Direction[] dirs = Direction.allDirections();
     int H, W;
@@ -35,7 +36,9 @@ public class Miner extends MyRobot {
     }
 
     public void play(){
+        if (comm.HQloc == null) comm.readHQloc();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
+        tryDisintegrate();
         tryMine();
         if (rc.isMovementReady()) {
             tryMove();
@@ -50,7 +53,7 @@ public class Miner extends MyRobot {
             if (enemy.type == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(enemy);
                 try {
-                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 1000 && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense not rush
+                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense not rush
                         comm.setTask(4); // RUSH!
                     }
                 } catch (Throwable t) {
@@ -82,6 +85,41 @@ public class Miner extends MyRobot {
             }
         }
         return null;
+    }
+
+    MapLocation getMineProspect() {
+        MapLocation myLoc = rc.getLocation();
+        // consider giving up if too far away
+        MapLocation target = null;
+        int bestDist = 10000;
+        try {
+            MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, RobotType.MINER.visionRadiusSquared);
+            for (MapLocation cell : cells){
+                if (rc.senseLead(cell) > 0 || (cell.distanceSquaredTo(comm.HQloc) >  RobotType.ARCHON.visionRadiusSquared)) continue;
+                int dist = myLoc.distanceSquaredTo(cell);
+                if (dist < bestDist) { // closest spot with no lead within turtle radius
+                    bestDist = dist;
+                    target = cell;
+                }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        if (target == null) return comm.HQloc;
+        return target;
+    }
+
+    void tryDisintegrate() {
+        if (rc.getHealth() >= DISINTEGRATE_HEALTH) return;
+        if (!rc.isActionReady()) return;
+        MapLocation myLoc = rc.getLocation();
+        try {
+            if ((myLoc.distanceSquaredTo(comm.HQloc) <= RobotType.ARCHON.visionRadiusSquared) && rc.senseLead(myLoc) == 0) {
+                rc.disintegrate();
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 
     // flees to the lowest rubble tile away from enemy
@@ -151,6 +189,7 @@ public class Miner extends MyRobot {
 
     void tryMove(){
         MapLocation loc = moveInCombat();
+        if (rc.getHealth() < DISINTEGRATE_HEALTH) loc = getMineProspect(); // if too far from HQ, don't bother
         if (loc == null) loc = getClosestMine();
         if (loc != null){
             bfs.move(loc);
