@@ -1,4 +1,4 @@
-package sageplayer;
+package turtleplayer;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
