@@ -50,7 +50,7 @@ public class Miner extends MyRobot {
             if (enemy.type == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(enemy);
                 try {
-                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 12) { // sense not rush
+                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 1000 && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense not rush
                         comm.setTask(4); // RUSH!
                     }
                 } catch (Throwable t) {
@@ -77,7 +77,8 @@ public class Miner extends MyRobot {
 
             if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer TODO: flee from highest enemyforcescount
                 explore.reset();
-                return flee(enemy.location);
+                //return flee(enemy.location);
+                return comm.HQloc;
             }
         }
         return null;
@@ -106,7 +107,7 @@ public class Miner extends MyRobot {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        System.err.println("miner fleeing at " + myLoc + " fleeing " + enemy + " to " + bestLoc);
+        //System.err.println("miner fleeing at " + myLoc + " fleeing " + enemy + " to " + bestLoc);
         return bestLoc;
     }
 

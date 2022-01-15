@@ -24,7 +24,6 @@ public class Sage extends MyRobot {
     MapLocation nearestCorner;
     int task = 0;
     RobotInfo[] nearbyEnemies;
-    boolean attacked = false;
     double mapLeadScore;
 
     public Sage(RobotController rc){
@@ -41,7 +40,6 @@ public class Sage extends MyRobot {
     }
 
     public void play() {
-        attacked = false;
         tryAttack();
         tryMove();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.SAGE.visionRadiusSquared, enemyTeam);
@@ -50,18 +48,36 @@ public class Sage extends MyRobot {
     }
 
     void tryAttack(){ // shoot lowest health with dist as tiebreaker
-        if (attacked) return;
+        if (!rc.isActionReady()) return;
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SAGE.actionRadiusSquared, enemyTeam);
         MapLocation myLoc = rc.getLocation();
         MapLocation bestLoc = null;
         int bestHealth = 10000;
         int bestDist = 10000;
+        boolean canKillAUnit = false;
         for (RobotInfo r : enemies) {
             if (!r.type.canAttack()) continue; // ignore non offensive units-- waste of 200 cd
+            //if there is a unit we can kill, get the unit with the highest health under sage's attack
+            if (!canKillAUnit && r.health < RobotType.SAGE.damage) {
+                canKillAUnit = true;
+                bestHealth = 0;
+                bestDist = 10000;
+            }
             MapLocation enemyLoc = r.getLocation();
-            if (rc.canAttack(enemyLoc)) {
-                int dist = myLoc.distanceSquaredTo(enemyLoc);
-                //TODO: fix
+            int dist = myLoc.distanceSquaredTo(enemyLoc);
+            //TODO: fix
+            if (canKillAUnit) {
+                if (r.health < RobotType.SAGE.damage) {
+                    bestHealth = r.health;
+                    bestDist = dist;
+                    bestLoc = enemyLoc;
+                }
+                else if (r.health == bestHealth && dist < bestDist) {
+                    bestDist = dist;
+                    bestLoc = enemyLoc;
+                }
+            }
+            else {
                 if (r.health > RobotType.SAGE.damage && r.health < bestHealth) {
                     bestHealth = r.health;
                     bestDist = dist;
@@ -71,17 +87,11 @@ public class Sage extends MyRobot {
                     bestDist = dist;
                     bestLoc = enemyLoc;
                 }
-                else if (r.health < RobotType.SAGE.damage) {
-                    bestHealth = r.health;
-                    bestDist = dist;
-                    bestLoc = enemyLoc;
-                }
             }
         }
         try {
             if (bestLoc != null) {
                 rc.attack(bestLoc);
-                attacked = true;
             }
         } catch (Throwable t) {
             t.printStackTrace();
@@ -124,6 +134,7 @@ public class Sage extends MyRobot {
                 break;
             }
             case 2: {// emergency
+                task = comm.getTask();
                 MapLocation target = moveInCombat();
                 if (target == null) {
                     target = comm.getEmergencyLoc();
@@ -237,7 +248,7 @@ public class Sage extends MyRobot {
             if (r.getType() == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(r);
                 try {
-                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 500 && rc.senseNearbyLocationsWithLead(RobotType.SAGE.visionRadiusSquared).length > 12) { // sense not rush
+                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.getRoundNum() < 1000 && rc.senseNearbyLocationsWithLead(RobotType.SAGE.visionRadiusSquared).length > 9) { // sense not rush
                         comm.setTask(4); // RUSH!
                     }
                 } catch (Throwable t) {

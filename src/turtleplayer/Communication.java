@@ -29,9 +29,8 @@
 // [28] Crunch index = idx
 // [29] isBuilderBuilt = 0|1
 // [30] Call for Reinforcements = numEnemies (4 bits) location of enemy (12 bits)
-// [31] Home base miner = 0|1
 
-package sageplayer;
+package turtleplayer;
 
 import battlecode.common.GameConstants;
 import battlecode.common.MapLocation;
@@ -437,6 +436,24 @@ public class Communication {
             t.printStackTrace();
         }
         return;
+    }
+
+    int getMinerFlag() {
+        int bit = 0;
+        try {
+            bit = rc.readSharedArray(31);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bit;
+    }
+
+    void setMinerFlag (int flag) {
+        try {
+            rc.writeSharedArray(31, flag);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 
     boolean labIsBuilt() {
