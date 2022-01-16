@@ -228,8 +228,8 @@ public class Soldier extends MyRobot {
             }
             if (myForcesCount < enemyForcesCount) {
                 explore.reset();
-                // don't call for overly aggressive reinforcements
-                if (myForcesCount*1.5 > enemyForcesCount || myLoc.distanceSquaredTo(comm.getHQOpposite()) <= myLoc.distanceSquaredTo(comm.HQloc)) {
+                // don't call for overly aggressive reinforcements TODO: rehaul reinforcements and go to nearest logged enemy
+                if (myForcesCount*1.5 > enemyForcesCount || myLoc.distanceSquaredTo(comm.getHQOpposite()) > myLoc.distanceSquaredTo(comm.HQloc)) {
                     comm.callReinforcements(enemyNum, enemy.location);
                 }
                 //return flee(enemy.location); // lowest rubble tile away from enemy
