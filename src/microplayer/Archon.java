@@ -7,7 +7,7 @@ package microplayer;
 // otherwise, we should consider the following factors
 // lead, rubble
 // distance from map center
-// net distance from other archones (least travel time)
+// net distance from other archons (least travel time)
 
 // in deciding when to move the archons, we should consider the following
 // overall lead
@@ -20,8 +20,6 @@ package microplayer;
 
 
 import battlecode.common.*;
-
-import java.util.Map;
 
 public class Archon extends MyRobot {
     static final Direction[] spawnDirections = {
@@ -80,7 +78,7 @@ public class Archon extends MyRobot {
         getNearbyInfo();
         comm.writeAllyArchonLocation(leadScore);
         mapCenter = new MapLocation((W - 1)/2, (H - 1)/2);
-        comm.setTask(comm.EXPLORE); // for now we are ignoring scouting and starting with harass/protecting miners
+        comm.setTask(Communication.EXPLORE); // for now, we are ignoring scouting and starting with harass/protecting miners
         //remove round 1000 lab
         comm.setBuilderBuilt();
         comm.setLabBuilt();
@@ -103,12 +101,12 @@ public class Archon extends MyRobot {
         }
         // CRUNCH TIME
         if (currRound >= CRUNCH_ROUND && rc.getArchonCount() < comm.numArchons) { // if we lost an archon, we need to try to get theirs
-            comm.setTask(comm.CRUNCH);
+            comm.setTask(Communication.CRUNCH);
         }
         if (rc.getMode() == RobotMode.TURRET) {
             checkForAttackers(); //sends emergency to all soldiers if x enemies in archon vision
             if (!arrived && currRound > birthday + 2) {
-                if (minersBuilt >= P1_MINERS - comm.numArchons || currRound > comm.P2_START) { // archon voyage
+                if (minersBuilt >= P1_MINERS - comm.numArchons || currRound > Communication.P2_START) { // archon voyage
                     try {
                         if (rc.isTransformReady()) {
                             rc.transform();
@@ -122,7 +120,7 @@ public class Archon extends MyRobot {
             if (!tryBuild()) tryRepair();
         }
         else {
-            if (arrived == false) {
+            if (!arrived) {
                 tryMove();
             }
             comm.incSpawnCounter(); // avoid getting stuck;
@@ -136,11 +134,11 @@ public class Archon extends MyRobot {
         for (RobotInfo r : robots) {
             if (r.getType().canAttack()) {
                 comm.setEmergencyLoc(r.location);
-                comm.setTask(comm.EMERGENCY);
+                comm.setTask(Communication.EMERGENCY);
                 return;
             }
         }
-        if (task == comm.EMERGENCY && rc.canSenseLocation(comm.getEmergencyLoc())) comm.setTask(comm.EXPLORE);
+        if (task == Communication.EMERGENCY && rc.canSenseLocation(comm.getEmergencyLoc())) comm.setTask(Communication.EXPLORE);
     }
 
     void tryMove(){
@@ -162,29 +160,28 @@ public class Archon extends MyRobot {
         else {
             bfs.move(comm.HQloc);
         }
-        return;
     }
 
     boolean shouldBuildMiner() {
-        if (task == comm.CRUNCH) return false; //crunch
+        if (task == Communication.CRUNCH) return false; //crunch
         // PHASE 1
-        if (currRound < comm.P2_START) {
+        if (currRound < Communication.P2_START) {
             if (!arrived) {
                 return true; // archon hasn't started voyaging, build miner
             }
-            else if (task == comm.EMERGENCY) {
+            else if (task == Communication.EMERGENCY) {
                 return false; // emergency
             }
             else if (minersBuilt < P1_MINERS - comm.numArchons) { // hq build miners
                 return true;
             }
-            else if (builderCount < P1_BUILDERS && (mapLeadScore > comm.HIGH_LEAD_THRESHOLD)) { // need more deposits or need to rush towers
+            else if (builderCount < P1_BUILDERS && (mapLeadScore > Communication.HIGH_LEAD_THRESHOLD)) { // need more deposits or need to rush towers
                 return false;
             }
             return false;
         }
         // PHASE 2
-        else if (currRound < comm.P3_START) {
+        else if (currRound < Communication.P3_START) {
             int buildCode = comm.readBuildCode(2); // alternate soldiers and miners
             if (buildCode == 0) {
                 comm.writeBuildCode(2, 1);
@@ -195,7 +192,7 @@ public class Archon extends MyRobot {
             }
         }
         // PHASE 3
-        else if (currRound < comm.P4_START) {
+        else if (currRound < Communication.P4_START) {
             int buildCode = comm.readBuildCode(3);
             if (buildCode == 1) {
                 comm.writeBuildCode(3,2);
@@ -219,19 +216,19 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildBuilder() {
-        if (task == comm.CRUNCH) return false; //crunch
+        if (task == Communication.CRUNCH) return false; //crunch
         // PHASE 1
-        if (currRound < comm.P2_START) {
-            if (arrived && builderCount < P1_BUILDERS && (mapLeadScore > comm.HIGH_LEAD_THRESHOLD)) return true; // early towers
+        if (currRound < Communication.P2_START) {
+            if (arrived && builderCount < P1_BUILDERS && (mapLeadScore > Communication.HIGH_LEAD_THRESHOLD)) return true; // early towers
             return false;
         }
         // PHASE 2
-        else if (currRound < comm.P3_START) { //TODO: disintegrate miners if lead is low
-            if (builderCount < minersBuilt && builderCount < P2_BUILDERS && mapLeadScore > comm.HIGH_LEAD_THRESHOLD ) return true; // early towers
+        else if (currRound < Communication.P3_START) { //TODO: disintegrate miners if lead is low
+            if (builderCount < minersBuilt && builderCount < P2_BUILDERS && mapLeadScore > Communication.HIGH_LEAD_THRESHOLD ) return true; // early towers
             return false;
         }
         // PHASE 3
-        else if (currRound < comm.P4_START) {
+        else if (currRound < Communication.P4_START) {
             return false;
 
         }
@@ -247,12 +244,12 @@ public class Archon extends MyRobot {
         if (currGold > RobotType.SAGE.buildCostGold) return false;
         if (task == 4) return true; //crunch
         // PHASE 1
-        if (currRound < comm.P2_START) {
-            if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD) return true;
+        if (currRound < Communication.P2_START) {
+            if (mapLeadScore < Communication.HIGH_LEAD_THRESHOLD) return true;
             return false;
         }
         // PHASE 2
-        else if (currRound < comm.P3_START) {
+        else if (currRound < Communication.P3_START) {
             if (currLead > 200) {
                 return true;
             }
@@ -266,7 +263,7 @@ public class Archon extends MyRobot {
             }
         }
         // PHASE 3
-        else if (currRound < comm.P4_START) {
+        else if (currRound < Communication.P4_START) {
             int buildCode = comm.readBuildCode(3);
             if (buildCode == 2) {
                 comm.writeBuildCode(3,0);
@@ -299,14 +296,14 @@ public class Archon extends MyRobot {
 
     //TODO: cleanup, spawn toward emergency, spawn in safe location, etc
     boolean tryBuild() {
-        if (currRound < comm.P3_START && comm.getSpawnCount() % rc.getArchonCount() != comm.spawnID) return false;
+        if (currRound < Communication.P3_START && comm.getSpawnCount() % rc.getArchonCount() != comm.spawnID) return false;
         task = comm.getTask(); // check if emergency, if so we'll build soldiers
         MapLocation myLoc = rc.getLocation();
         if (currLead >= RobotType.MINER.buildCostLead && shouldBuildMiner()) {
             MapLocation closestMine = getClosestMine();
             MapLocation bestLoc = null;
             try {
-                // TODO: if there are no mines in proximimty, should we consider spawn location?
+                // TODO: if there are no mines in proximity, should we consider spawn location?
                 for (Direction dir : spawnDirections) {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
                         MapLocation spawnLoc = myLoc.add(dir);
@@ -430,7 +427,7 @@ public class Archon extends MyRobot {
         MapLocation bestMine = null;
         int bestDist = 10000;
         try {
-            MapLocation leadMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared);
+            MapLocation[] leadMines = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared);
             for (MapLocation mine : leadMines) {
                 int lead = rc.senseLead(mine);
                 if (lead > MIN_LEAD_TO_MINE) {
@@ -455,7 +452,7 @@ public class Archon extends MyRobot {
         MapLocation myLoc = rc.getLocation();
         try {
             myRubble = rc.senseRubble(myLoc);
-            MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
+            MapLocation[] cells = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells) { // interlinked
                 int rubble = rc.senseRubble(cell);
                 int lead = rc.senseLead(cell);

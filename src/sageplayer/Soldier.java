@@ -56,7 +56,6 @@ public class Soldier extends MyRobot {
     void tryAttack(){
         if (!rc.isActionReady()) return;
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
-        MapLocation myLoc = rc.getLocation();
         MapLocation bestLoc = null;
         boolean attackerInRange = false;
         // don't attack miners if soldiers in view
@@ -194,13 +193,6 @@ public class Soldier extends MyRobot {
             }
             default:
         }
-
-        /*if (rc.getRoundNum() - birthday > exploreRounds){
-            if (goToEnemyHQ()) return;
-        }*/
-        //soldiers dont explore
-        //rc.setIndicatorDot(loc, 0, 0, 255);
-        return;
     }
 
     //TODO: improve
@@ -267,12 +259,8 @@ public class Soldier extends MyRobot {
                 if (!rc.canMove(dir)) continue; // reduce bytecode?
                 if (prospect.distanceSquaredTo(pursuitTarget) <= RobotType.SOLDIER.visionRadiusSquared) {
                     int r = rc.senseRubble(prospect);
-                    if (r < bestRubble) {
-                        bestLoc = prospect;
-                        bestRubble = r;
-                    }
-                    // in case of tie, try to stay at farther range
-                    else if (r == bestRubble && prospect.distanceSquaredTo(pursuitTarget) > myLoc.distanceSquaredTo(pursuitTarget)) {
+                    // in case of tie, stay at farther range
+                    if (r < bestRubble || (r == bestRubble && prospect.distanceSquaredTo(pursuitTarget) > myLoc.distanceSquaredTo(pursuitTarget))) {
                         bestLoc = prospect;
                         bestRubble = r;
                     }
@@ -315,7 +303,7 @@ public class Soldier extends MyRobot {
             if (r.getType() == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(r);
                 try {
-                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense should crunch
+                    if (mapLeadScore < Communication.HIGH_LEAD_THRESHOLD && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense should crunch
                         comm.setTask(4); // RUSH!
                     }
                 } catch (Throwable t) {
@@ -361,7 +349,7 @@ public class Soldier extends MyRobot {
         MapLocation myLoc = rc.getLocation();
         MapLocation space = null;
         try {
-            MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
+            MapLocation[] cells = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells) { // interlinked
                 if (!rc.canSenseLocation(cell)) continue; // needed?
                 if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(cell)) { // some spacing condition

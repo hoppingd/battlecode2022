@@ -5,10 +5,10 @@
 // [4] Archon 2: ARCHON_SET yyyy yyxx xxxx
 // [5] Archon 3: ARCHON_SET yyyy yyxx xxxx
 // [6] Archon 4: ARCHON_SET yyyy yyxx xxxx
-// [7] EnemyArchon 1: ARCHON_SET ID(6bits) yyyy yyxx xxxx
-// [8] EnemyArchon 2: ARCHON_SET ID(6bits) yyyy yyxx xxxx
-// [9] EnemyArchon 3: ARCHON_SET ID(6bits) yyyy yyxx xxxx
-// [10] EnemyArchon 4: ARCHON_SET ID(6bits) yyyy yyxx xxxx
+// [7] EnemyArchon 1: ARCHON_SET yyyy yyxx xxxx
+// [8] EnemyArchon 2: ARCHON_SET yyyy yyxx xxxx
+// [9] EnemyArchon 3: ARCHON_SET yyyy yyxx xxxx
+// [10] EnemyArchon 4: ARCHON_SET yyyy yyxx xxxx
 // [11] Lab is built : IS_BUILT
 // [12] Build code P1: CODE
 // [13] Build code P2: CODE
@@ -30,6 +30,7 @@
 // [29] isBuilderBuilt = 0|1
 // [30] Call for Reinforcements = numEnemies (4 bits) location of enemy (12 bits)
 // [31] Home base miner = 0|1
+// [32-63] Enemy comms: ID (6bits) yyyy yyxx xxxx
 
 package microplayer;
 
@@ -102,8 +103,7 @@ public class Communication {
 
     void incSpawnCounter() {
         try {
-            int spawnCounter = 0;
-            spawnCounter = rc.readSharedArray(27);
+            int spawnCounter = rc.readSharedArray(27);
             rc.writeSharedArray(27, spawnCounter + 1);
         } catch (Throwable t) {
             t.printStackTrace();

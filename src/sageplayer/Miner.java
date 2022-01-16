@@ -53,7 +53,7 @@ public class Miner extends MyRobot {
             if (enemy.type == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(enemy);
                 try {
-                    if (mapLeadScore < comm.HIGH_LEAD_THRESHOLD && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense not rush
+                    if (mapLeadScore < Communication.HIGH_LEAD_THRESHOLD && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense not rush
                         comm.setTask(4); // RUSH!
                     }
                 } catch (Throwable t) {
@@ -78,7 +78,7 @@ public class Miner extends MyRobot {
                 }
             }
 
-            if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer TODO: flee from highest enemyforcescount
+            if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer TODO: flee from highest enemyForcesCount
                 explore.reset();
                 //return flee(enemy.location);
                 return comm.HQloc;
@@ -93,7 +93,7 @@ public class Miner extends MyRobot {
         MapLocation target = null;
         int bestDist = 10000;
         try {
-            MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, RobotType.MINER.visionRadiusSquared);
+            MapLocation[] cells = rc.getAllLocationsWithinRadiusSquared(myLoc, RobotType.MINER.visionRadiusSquared);
             for (MapLocation cell : cells){
                 if (rc.senseLead(cell) > 0 || (cell.distanceSquaredTo(comm.HQloc) >  RobotType.ARCHON.visionRadiusSquared)) continue;
                 int dist = myLoc.distanceSquaredTo(cell);
@@ -197,7 +197,6 @@ public class Miner extends MyRobot {
         }
         loc = explore.getExplore2Target(); // use alternate function to find points of interest
         bfs.move(loc);
-        return;
     }
 
     MapLocation getClosestMine(){
@@ -205,7 +204,7 @@ public class Miner extends MyRobot {
         MapLocation bestMine = null;
         int bestDist = 10000;
         try {
-            MapLocation leadMines[] = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared, MIN_LEAD_TO_MINE);
+            MapLocation[] leadMines = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared, MIN_LEAD_TO_MINE);
             for (MapLocation mine : leadMines) { // interlinked
                 if ((comm.HQloc != null && mine.isAdjacentTo(comm.HQloc)) || rc.senseNearbyRobots(mine, 2, myTeam).length > 2) continue;
                 int dist = myLoc.distanceSquaredTo(mine);
