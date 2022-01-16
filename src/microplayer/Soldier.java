@@ -42,13 +42,10 @@ public class Soldier extends MyRobot {
     }
 
     public void play() {
-        target = moveInCombat();
-        // if we are fleeing attack first, otherwise wait to move onto lower rubble tile
-        if (target == null || target == comm.HQloc || target == rc.getLocation()) tryAttack();
-        tryMove();
-        nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
+        if (!bfs.doMicro()) {
+            tryMove();
+        }
         tryAttack();
-
     }
 
     void tryAttack(){
@@ -188,7 +185,7 @@ public class Soldier extends MyRobot {
     }
 
     //TODO: improve
-    MapLocation moveInCombat() {
+    /*MapLocation moveInCombat() {
         MapLocation pursuitTarget = null;
         MapLocation myLoc = rc.getLocation();
         int lowestHealth = 40000;
@@ -228,7 +225,7 @@ public class Soldier extends MyRobot {
             pursuitTarget = getGreedyAttackTile(pursuitTarget);
         }
         return pursuitTarget;
-    }
+    }*/
 
     MapLocation getGreedyAttackTile(MapLocation pursuitTarget) {
         MapLocation myLoc = rc.getLocation();

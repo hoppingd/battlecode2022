@@ -13,6 +13,8 @@ public class Pathfinding {
     BugNav bugNav = new BugNav();
     Exploration explore;
 
+    Team myTeam, enemyTeam;
+
     static final Direction[] directions = {
             Direction.NORTH,
             Direction.NORTHEAST,
@@ -41,17 +43,22 @@ public class Pathfinding {
         return true;
     }
 
+    boolean doMicro() {
+        return bugNav.doMicro();
+    }
 
     Pathfinding(RobotController rc, Exploration explore){
         this.rc = rc;
         this.explore = explore;
+        myTeam = rc.getTeam();
+        enemyTeam = myTeam.opponent();
     }
 
     double getEstimation (MapLocation loc){
         try {
             if (loc.distanceSquaredTo(target) == 0) return 0;
             int d = Util.distance(target, loc);
-            double r = rc.senseRubble(loc);
+            double r = 10 + rc.senseRubble(loc);
             return r + (d - 1)*avgRubble;
         } catch (Throwable e){
             e.printStackTrace();
@@ -194,7 +201,69 @@ public class Pathfinding {
             int bit = rotateRight ? 1 : 0;
             return (((((x << 6) | y) << 4) | obstacleDir.ordinal()) << 1) | bit;
         }
+
+        boolean doMicro() {
+            MicroInfo[] microInfo = new MicroInfo[9];
+            for (int i = 0; i < 9; i++) microInfo[i] = new MicroInfo(rc.getLocation().add(directions[i]));
+
+            RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
+
+            for (RobotInfo enemy : enemies) {
+                for (int i = 0; i < 9; i++) {
+                    microInfo[i].update(enemy);
+                }
+            }
+
+            int bestIndex = -1;
+            for (int i = 8; i >= 0; i--) {
+                if (!rc.canMove(directions[i])) continue;
+                if (bestIndex < 0 || !microInfo[bestIndex].isBetter(microInfo[i])) bestIndex = i;
+            }
+
+            if (bestIndex != -1) {
+                if (enemies.length > 0) {
+                    try {
+                        rc.move(directions[bestIndex]);
+                    } catch (Throwable e){
+                        e.printStackTrace();
+                    }
+
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        class MicroInfo{
+            int numEnemies;
+            int minDistToEnemy = INF;
+            MapLocation loc;
+
+            public MicroInfo(MapLocation loc) {
+                this.loc = loc;
+                numEnemies = 0;
+            }
+
+            void update(RobotInfo robot) {
+                int d = robot.location.distanceSquaredTo(loc);
+                if (d <= robot.type.actionRadiusSquared) numEnemies++;
+                if (d < minDistToEnemy) minDistToEnemy = d;
+            }
+
+            boolean canAttack() {
+                return rc.getType().actionRadiusSquared >= minDistToEnemy;
+            }
+
+            boolean isBetter (MicroInfo m) {
+                if (numEnemies < m.numEnemies) return true;
+                if (numEnemies > m.numEnemies) return false;
+                if (canAttack()) {
+                    if (!m.canAttack()) return true;
+                    return minDistToEnemy >= m.minDistToEnemy;
+                }
+                if (m.canAttack()) return false;
+                return minDistToEnemy <= m.minDistToEnemy;
+            }
+        }
     }
-
-
 }
