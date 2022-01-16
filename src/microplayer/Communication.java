@@ -62,6 +62,7 @@ public class Communication {
 
     static final int HIGH_LEAD_THRESHOLD = 2000;
     static final int LOW_LEAD_THRESHOLD = 25;
+    static final int MAX_LOGGED_ENEMIES = 25;
 
     RobotController rc;
     MapLocation HQloc = null;
@@ -70,6 +71,8 @@ public class Communication {
     int numArchons; // inital archons
     int archonsAlive;
     int H, W;
+
+    LogEntry[] loggedEnemies;
 
     MapLocation[] allyArchons;
     MapLocation[] enemyArchons;
@@ -139,6 +142,76 @@ public class Communication {
         } catch (Throwable t) {
             t.printStackTrace();
         }
+    }
+
+    void getLoggedEnemies() {
+        try {
+            for (int i = ENEMY_LOGS_ARRAY_START; i < ENEMY_LOGS_ARRAY_START + MAX_LOGGED_ENEMIES; i++) {
+                int code = rc.readSharedArray(i);
+                if (code != 0) {
+                    int x = code & 0x3F;
+                    int y = (code >> 6) & 0x3F;
+                    int id = (code >> 12) & 0x3F;
+                    loggedEnemies[i - ENEMY_LOGS_ARRAY_START] = new LogEntry(new MapLocation(x, y), id);
+                }
+                else {
+                    loggedEnemies[i - ENEMY_LOGS_ARRAY_START] = null;
+                }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    // do we need to add to local loggedEnemies?
+    void writeEnemyToLog(MapLocation loc, int id) {
+        try {
+            int freeIndex = -1;
+            int code = (((id << 6) + loc.y) << 6) + loc.x;
+            for (int i = 0; i < MAX_LOGGED_ENEMIES; i++) {
+                if (loggedEnemies[i].id == id) {
+                    if (loggedEnemies[i].location.equals(loc)) return; // found log, but has same location
+                    rc.writeSharedArray(i + ENEMY_LOGS_ARRAY_START, code);
+                    return;
+                }
+                if (freeIndex == -1 && loggedEnemies[i] == null) freeIndex = i;
+            }
+            // found an emptied log, so we use it
+            if (freeIndex != -1) {
+                rc.writeSharedArray(freeIndex + ENEMY_LOGS_ARRAY_START, code);
+            }
+            // evict a random log and write
+            rc.writeSharedArray((int)Math.random()*MAX_LOGGED_ENEMIES + ENEMY_LOGS_ARRAY_START, code);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    void deleteEnemyFromLog(int id) {
+        try {
+            for (int i = 0; i < MAX_LOGGED_ENEMIES; i++) {
+                if (loggedEnemies[i].id == id) {
+                    rc.writeSharedArray(i + ENEMY_LOGS_ARRAY_START, 0);
+                    loggedEnemies[i] = null;
+                    return;
+                }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    MapLocation getNearestLoggedEnemy() {
+        MapLocation bestLoc = null;
+        MapLocation myLoc = rc.getLocation();
+        for (int i = 0; i < MAX_LOGGED_ENEMIES; i++) {
+            if (loggedEnemies[i] == null) continue;
+            if (bestLoc == null) bestLoc = loggedEnemies[i].location;
+            else if (myLoc.distanceSquaredTo(loggedEnemies[i].location) < myLoc.distanceSquaredTo(bestLoc)) {
+                bestLoc = loggedEnemies[i].location;
+            }
+        }
+        return bestLoc;
     }
 
     // writes to first available archon location. also writes lead score and sets spawnid.
@@ -418,6 +491,16 @@ public class Communication {
             t.printStackTrace();
         }
         return loc;
+    }
+
+    class LogEntry {
+        MapLocation location;
+        int id;
+
+        LogEntry(MapLocation location, int id) {
+            this.location = location;
+            this.id = id;
+        }
     }
 }
 

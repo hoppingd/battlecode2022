@@ -25,6 +25,7 @@ public class Soldier extends MyRobot {
     int task = 0;
     double mapLeadScore;
     MapLocation target;
+    boolean attackerInRange= false;
 
     public Soldier(RobotController rc){
         super(rc);
@@ -39,6 +40,8 @@ public class Soldier extends MyRobot {
     }
 
     public void play() {
+        target = null;
+        comm.getLoggedEnemies();
         if (!bfs.doMicro()) {
             tryMove();
         }
@@ -50,16 +53,17 @@ public class Soldier extends MyRobot {
         RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
-        boolean attackerInRange = false;
+        attackerInRange = false;
         // don't attack miners if soldiers in view
         for (RobotInfo r : nearbyEnemies) {
             if (r.type.canAttack()) {
+                comm.writeEnemyToLog(r.location, r.ID);
                 attackerInRange = true;
-                break;
             }
         }
         int bestHealth = 10000;
         int bestRubble = GameConstants.MAX_RUBBLE;
+        RobotInfo bestTarget = null;
         for (RobotInfo r : enemies) {
             MapLocation enemyLoc = r.getLocation();
             boolean isAttacker = r.type.canAttack();
@@ -74,6 +78,7 @@ public class Soldier extends MyRobot {
             if (isAttacker && !attackerInRange) {
                 bestHealth = 10000;
                 bestRubble = rubble;
+                bestTarget = r;
                 attackerInRange = true;
             }
             // shoot lowest health with rubble as tiebreaker
@@ -81,14 +86,17 @@ public class Soldier extends MyRobot {
                 bestHealth = r.health;
                 bestRubble = rubble;
                 bestLoc = enemyLoc;
+                bestTarget = r;
             }
             else if (r.health == bestHealth && rubble < bestRubble) {
                 bestRubble = rubble;
                 bestLoc = enemyLoc;
+                bestTarget = r;
             }
         }
         try {
             if (bestLoc != null) {
+                if (bestTarget.health <= RobotType.SOLDIER.damage) comm.deleteEnemyFromLog(bestTarget.getID());
                 rc.attack(bestLoc);
             }
         } catch (Throwable t) {
@@ -137,6 +145,7 @@ public class Soldier extends MyRobot {
             }
             case 3: { // explore
                 task = comm.getTask();
+                if (!attackerInRange) target = comm.getNearestLoggedEnemy();
                 if (target == null) {
                     target = explore.getExplore3Target();
                 }
