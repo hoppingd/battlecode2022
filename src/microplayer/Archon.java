@@ -226,8 +226,7 @@ public class Archon extends MyRobot {
         }
         // PHASE 4
         else {
-            if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            return true;
+            return false;
         }
     }
 

@@ -1,6 +1,7 @@
 package microplayer;
 
 import battlecode.common.*;
+import javafx.scene.control.TableRow;
 
 import java.util.HashSet;
 
@@ -237,11 +238,17 @@ public class Pathfinding {
         class MicroInfo{
             int numEnemies;
             int minDistToEnemy = INF;
+            int rubble = GameConstants.MAX_RUBBLE + 1;
             MapLocation loc;
 
             public MicroInfo(MapLocation loc) {
                 this.loc = loc;
                 numEnemies = 0;
+                try {
+                    if (rc.onTheMap(loc)) rubble = rc.senseRubble(loc);
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
             }
 
             void update(RobotInfo robot) {
@@ -260,9 +267,14 @@ public class Pathfinding {
                 if (numEnemies > m.numEnemies) return false;
                 if (canAttack()) {
                     if (!m.canAttack()) return true;
+                    // rubble
+                    if (rubble < m.rubble) return true;
+                    if (rubble > m.rubble) return false;
                     return minDistToEnemy >= m.minDistToEnemy;
                 }
                 if (m.canAttack()) return false;
+                if (rubble < m.rubble) return true;
+                if (rubble > m.rubble) return false;
                 return minDistToEnemy <= m.minDistToEnemy;
             }
         }
