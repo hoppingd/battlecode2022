@@ -1,4 +1,4 @@
-package turtleplayer;
+package microplayer;
 
 import battlecode.common.*;
 
@@ -22,7 +22,7 @@ public class Laboratory extends MyRobot {
     boolean transmute() {
         int currLead = rc.getTeamLeadAmount(myTeam);
         // need to win
-        if (currLead - rc.getTransmutationRate() > RobotType.SOLDIER.buildCostLead) { // <- try to win on gold
+        if (currLead - rc.getTransmutationRate() > 50) { // <- try to win on gold
             try {
                 if (rc.canTransmute()) {
                     rc.transmute();

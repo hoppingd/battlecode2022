@@ -296,7 +296,6 @@ public class Communication {
                 }
                 else {
                     enemyArchons[i - ENEMY_ARCHON_ARRAY_START] = null;
-                    return;
                 }
             }
 
