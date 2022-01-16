@@ -130,7 +130,7 @@ public class Archon extends MyRobot {
     // TODO: only call emergency if troops are really needed
     void checkForAttackers() {
         if (!arrived) return;
-        RobotInfo[] robots = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
+        RobotInfo[] robots = rc.senseNearbyRobots(RobotType.ARCHON.visionRadiusSquared, enemyTeam);
         for (RobotInfo r : robots) {
             if (r.getType().canAttack()) {
                 comm.setEmergencyLoc(r.location);

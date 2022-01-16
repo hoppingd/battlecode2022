@@ -1,5 +1,5 @@
 // [0] Pathing to HQ with flag: HQ_DECIDED yyyy yyxx xxxx
-// [1] Task: 0 = scout, 1 = lattice, 2 = emergency 3 = explore, 4 = crunch
+// [1] Task and build codes: p4 (3) p3 (3) p2 (3) p1 (3) task (3)
 // [2] Symmetry: MIR HOR VERT INITIAL_SYMMETRY
 // [3] Archon 1: ARCHON_SET yyyy yyxx xxxx
 // [4] Archon 2: ARCHON_SET yyyy yyxx xxxx
@@ -10,10 +10,10 @@
 // [9] EnemyArchon 3: ARCHON_SET yyyy yyxx xxxx
 // [10] EnemyArchon 4: ARCHON_SET yyyy yyxx xxxx
 // [11] Lab is built : IS_BUILT
-// [12] Build code P1: CODE
-// [13] Build code P2: CODE
-// [14] Build code P3: CODE
-// [15] Build code P4: CODE
+// [12] FREE
+// [13] FREE
+// [14] FREE
+// [15] FREE
 // [16] Emergency location: yyyy yyxx xxxx
 // [17] EnemyArchonID: ID
 // [18] EnemyArchonID: ID
@@ -28,13 +28,10 @@
 // [27] Spawn counter = count
 // [28] Crunch index = idx
 // [29] isBuilderBuilt = 0|1
-// [30] Call for Reinforcements = numEnemies (4 bits) location of enemy (12 bits)
-// [31] Home base miner = 0|1
-// [32-63] Enemy comms: ID (6bits) yyyy yyxx xxxx
+// [30-63] Enemies comms = yyyy yyxx xxxx
 
 package microplayer;
 
-import battlecode.common.GameConstants;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
@@ -408,12 +405,14 @@ public class Communication {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return task;
+        return task & 0x7;
     }
 
     void setTask(int n) {
         try {
-            rc.writeSharedArray(1, n);
+            int code = rc.readSharedArray(1);
+            code &= 0xFFF8;
+            rc.writeSharedArray(1, code | n);
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -422,7 +421,8 @@ public class Communication {
     int readBuildCode(int phase) {
         int build = 0;
         try {
-            build = rc.readSharedArray(BUILD_CODE_ARRAY_START - 1 + phase);
+            int code = rc.readSharedArray(1);
+            build = (code >> 3*phase) & 0x7;
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -431,11 +431,14 @@ public class Communication {
 
     void writeBuildCode(int phase, int buildCode) {
         try {
-            rc.writeSharedArray(BUILD_CODE_ARRAY_START - 1 + phase, buildCode);
+            int code = rc.readSharedArray(1);
+            int mask = ~(0x7 << (3*phase));
+            code &= mask;
+            code |= (buildCode << (3*phase));
+            rc.writeSharedArray(1, code);
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return;
     }
 
     boolean labIsBuilt() {
