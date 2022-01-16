@@ -1,4 +1,4 @@
-package sageplayer;
+package microplayer;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
