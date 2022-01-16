@@ -269,7 +269,7 @@ public class Soldier extends MyRobot {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        System.err.println("pursuit target: " + pursuitTarget + ", greedily moved to " + bestLoc);
+        //System.err.println("pursuit target: " + pursuitTarget + ", greedily moved to " + bestLoc);
         return bestLoc;
     }
     // flees to the lowest rubble tile away from enemy
