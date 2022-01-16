@@ -217,7 +217,7 @@ public class Communication {
             int enemies2 = (code >> 12) & 0xF;
             if (enemies1 > enemies2) {
                 int newCode = (enemies1 << 12) + (loc.y << 6) + loc.x;
-                //System.err.println("reinforce against " + enemies1 + " enemies");
+                //System.err.println("reinforce against " + enemies1 + " at " + loc);
                 rc.writeSharedArray(30, newCode);
             }
         } catch (Throwable t) {
