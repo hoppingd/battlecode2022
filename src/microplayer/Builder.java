@@ -141,7 +141,6 @@ public class Builder extends MyRobot {
                         try {
                             if (rc.canBuildRobot(RobotType.LABORATORY, dir)){
                                 rc.buildRobot(RobotType.LABORATORY, dir);
-                                comm.setLabBuilt();
                                 return;
                             }
                         } catch (Throwable t) {
@@ -153,7 +152,6 @@ public class Builder extends MyRobot {
                 try {
                     if (rc.canBuildRobot(RobotType.LABORATORY, dir)){
                         rc.buildRobot(RobotType.LABORATORY, dir);
-                        comm.setLabBuilt();
                     }
                 } catch (Throwable t) {
                     t.printStackTrace();

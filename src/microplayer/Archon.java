@@ -79,9 +79,6 @@ public class Archon extends MyRobot {
         comm.writeAllyArchonLocation(leadScore);
         mapCenter = new MapLocation((W - 1)/2, (H - 1)/2);
         comm.setTask(Communication.EXPLORE); // for now, we are ignoring scouting and starting with harass/protecting miners
-        //remove round 1000 lab
-        comm.setBuilderBuilt();
-        comm.setLabBuilt();
     }
 
     public void play() {
@@ -204,12 +201,7 @@ public class Archon extends MyRobot {
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
             if (comm.getSpawnCount() % 3 == 0) {
-                if (comm.labIsBuilt()) return true;
-                if (!comm.isBuilderBuilt()) {
-                    if (currLead >= RobotType.BUILDER.buildCostLead + RobotType.MINER.buildCostLead) return true;
-                    return false;
-                }
-                if (currLead >= RobotType.LABORATORY.buildCostLead + RobotType.MINER.buildCostLead) return true;
+                return true;
             }
         }
         return false;
@@ -235,9 +227,8 @@ public class Archon extends MyRobot {
         // PHASE 4
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            if (!comm.isBuilderBuilt()) return true;
+            return true;
         }
-        return false;
     }
 
     boolean shouldBuildSoldier() {
@@ -280,14 +271,8 @@ public class Archon extends MyRobot {
         // PHASE 4
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            if (comm.labIsBuilt()) return true;
-            if (!comm.isBuilderBuilt()) {
-                if (currLead >= RobotType.BUILDER.buildCostLead + RobotType.SOLDIER.buildCostLead) return true;
-                return false;
-            }
-            if (currLead >= RobotType.LABORATORY.buildCostLead + RobotType.SOLDIER.buildCostLead) return true;
+            return true;
         }
-        return false;
     }
 
     boolean shouldBuildSage() {
@@ -345,7 +330,6 @@ public class Archon extends MyRobot {
                     rc.buildRobot(RobotType.BUILDER, myLoc.directionTo(bestLoc));
                     comm.incSpawnCounter();
                     builderCount++;
-                    comm.setBuilderBuilt();
                     return true;
                 }
             } catch (Throwable t) {

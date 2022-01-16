@@ -1,6 +1,6 @@
 // [0] Pathing to HQ with flag: HQ_DECIDED yyyy yyxx xxxx
-// [1] Task and build codes: p4 (3) p3 (3) p2 (3) p1 (3) task (3)
-// [2] Symmetry: MIR HOR VERT INITIAL_SYMMETRY
+// [1] Task and build codes: p4 (3 bits) p3 (3 bits) p2 (3 bits) p1 (3 bits) task (3 bits)
+// [2] Symmetry: MIR HOR VERT INITIAL_SYMMETRY (not currently used
 // [3] Archon 1: ARCHON_SET yyyy yyxx xxxx
 // [4] Archon 2: ARCHON_SET yyyy yyxx xxxx
 // [5] Archon 3: ARCHON_SET yyyy yyxx xxxx
@@ -9,7 +9,7 @@
 // [8] EnemyArchon 2: ARCHON_SET yyyy yyxx xxxx
 // [9] EnemyArchon 3: ARCHON_SET yyyy yyxx xxxx
 // [10] EnemyArchon 4: ARCHON_SET yyyy yyxx xxxx
-// [11] Lab is built : IS_BUILT
+// [11] FREE
 // [12] FREE
 // [13] FREE
 // [14] FREE
@@ -27,8 +27,7 @@
 // [26] Map Lead Score: score
 // [27] Spawn counter = count
 // [28] Crunch index = idx
-// [29] isBuilderBuilt = 0|1
-// [30-63] Enemies comms = yyyy yyxx xxxx
+// [29-63] Enemy logs = yyyy yyxx xxxx
 
 package microplayer;
 
@@ -40,9 +39,9 @@ public class Communication {
 
     final static int ALLY_ARCHON_ARRAY_START = 3;
     final static int ENEMY_ARCHON_ARRAY_START = 7;
-    final static int BUILD_CODE_ARRAY_START = 12;
     final static int ENEMY_ARCHON_TO_ID = 10; // id array start - enemy archon array start
     final static int HQ_SCORE_ARRAY_START = 22;
+    final static int ENEMY_LOGS_ARRAY_START = 29;
 
     // TASK CODES
     final static int SCOUT = 0;
@@ -67,9 +66,11 @@ public class Communication {
     RobotController rc;
     MapLocation HQloc = null;
     MapLocation HQopposite = null;
+
     int numArchons; // inital archons
     int archonsAlive;
     int H, W;
+
     MapLocation[] allyArchons;
     MapLocation[] enemyArchons;
     int spawnID = 0;
@@ -140,23 +141,6 @@ public class Communication {
         }
     }
 
-    boolean isBuilderBuilt () {
-        int bit = 0;
-        try {
-            bit = rc.readSharedArray(29);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return bit == 1;
-    }
-
-    void setBuilderBuilt () {
-        try {
-            rc.writeSharedArray(29, 1);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
     // writes to first available archon location. also writes lead score and sets spawnid.
     void writeAllyArchonLocation(int leadScore) {
         try {
@@ -406,14 +390,6 @@ public class Communication {
             t.printStackTrace();
         }
         return isBuilt;
-    }
-
-    void setLabBuilt() {
-        try {
-            rc.writeSharedArray(11, 1);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
     }
 
     MapLocation getHQOpposite() {

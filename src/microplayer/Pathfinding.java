@@ -173,7 +173,7 @@ public class Pathfinding {
                     }
                     MapLocation newLoc = myLoc.add(dir);
                     if (!rc.onTheMap(newLoc)) rotateRight = !rotateRight;
-                        //If I could not go in that direction and it was not outside of the map, then this is the latest obstacle found
+                        //If I could not go in that direction, and it was not outside the map, then this is the latest obstacle found
                     else lastObstacleFound = myLoc.add(dir);
                     if (rotateRight) dir = dir.rotateRight();
                     else dir = dir.rotateLeft();
@@ -186,7 +186,7 @@ public class Pathfinding {
             return true;
         }
 
-        //clear some of the previous data
+        //clear some of previous data
         void resetPathfinding(){
             lastObstacleFound = null;
             minDistToEnemy = INF;
@@ -254,6 +254,7 @@ public class Pathfinding {
                 return rc.getType().actionRadiusSquared >= minDistToEnemy;
             }
 
+            //TODO: consider rubble
             boolean isBetter (MicroInfo m) {
                 if (numEnemies < m.numEnemies) return true;
                 if (numEnemies > m.numEnemies) return false;
