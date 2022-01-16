@@ -23,7 +23,6 @@ public class Soldier extends MyRobot {
     Team myTeam, enemyTeam;
 
     MapLocation nearestCorner;
-    MapLocation reinforceLoc;
     int task = 0;
     RobotInfo[] nearbyEnemies;
     double mapLeadScore;
@@ -44,7 +43,6 @@ public class Soldier extends MyRobot {
 
     public void play() {
         target = moveInCombat();
-        reinforceLoc = comm.readReinforcements();
         // if we are fleeing attack first, otherwise wait to move onto lower rubble tile
         if (target == null || target == comm.HQloc || target == rc.getLocation()) tryAttack();
         tryMove();
@@ -149,9 +147,6 @@ public class Soldier extends MyRobot {
             case 3: { // explore
                 task = comm.getTask();
                 if (target == null) {
-                    target = reinforceLoc;
-                }
-                if (target == null) {
                     target = explore.getExplore3Target();
                 }
                 bfs.move(target);
@@ -162,9 +157,6 @@ public class Soldier extends MyRobot {
                 task = comm.getTask();
                 comm.readEnemyArchonLocations();
                 int crunchIdx = comm.getCrunchIdx();
-                if (target == null) {
-                    target = reinforceLoc;
-                }
                 if (comm.enemyArchons[crunchIdx] != null) {
                     if (target == null) {
                         target = comm.enemyArchons[crunchIdx];
@@ -210,20 +202,14 @@ public class Soldier extends MyRobot {
                 }
             }
             int enemyForcesCount = 0;
-            int enemyNum = 0; // for calling reinforcements
             RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
             for (RobotInfo r : enemyForces) {
                 if (r.type.canAttack()) {
                     enemyForcesCount += r.health;
-                    enemyNum++;
                 }
             }
             if (myForcesCount < enemyForcesCount) {
                 explore.reset();
-                // don't call for overly aggressive reinforcements TODO: rehaul reinforcements and go to nearest logged enemy
-                if (myForcesCount*1.5 > enemyForcesCount || myLoc.distanceSquaredTo(comm.getHQOpposite()) > myLoc.distanceSquaredTo(comm.HQloc)) {
-                    comm.callReinforcements(enemyNum, enemy.location);
-                }
                 //return flee(enemy.location); // lowest rubble tile away from enemy
                 return comm.HQloc; // TODO: consider enemies
             }
@@ -236,11 +222,6 @@ public class Soldier extends MyRobot {
             }
             else if (enemyForcesCount == 0) {
                 pursuitTarget = enemy.location; // no nearby forces? harass.
-            }
-
-            //wipe reinforcements if winning fight
-            if (reinforceLoc != null && myForcesCount > enemyForcesCount && myLoc.distanceSquaredTo(reinforceLoc) <= RobotType.SOLDIER.visionRadiusSquared) {
-                comm.clearReinforcements();
             }
         }
         if (pursuitTarget != null) {

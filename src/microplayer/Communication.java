@@ -178,7 +178,6 @@ public class Communication {
             t.printStackTrace();
         }
         initialSymmetry();
-        return;
     }
 
     // reads ally archon locations. returns true if all have been read.
@@ -207,46 +206,6 @@ public class Communication {
         return true;
     }
 
-    // if enemies seen are greater than last reinforcements call, write over TODO: should not call for reinforcements in significantly lost combats
-    void callReinforcements(int enemies1, MapLocation loc) {
-        try {
-            int code = rc.readSharedArray(30);
-            int enemies2 = (code >> 12) & 0xF;
-            if (enemies1 > enemies2) {
-                int newCode = (enemies1 << 12) + (loc.y << 6) + loc.x;
-                //System.err.println("reinforce against " + enemies1 + " enemies");
-                rc.writeSharedArray(30, newCode);
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-
-    MapLocation readReinforcements() {
-        try {
-            int code = rc.readSharedArray(30);
-            int enemies = (code >> 12) & 0xF;
-            if (enemies == 0) {
-               return null;
-            }
-            int x = code & 0x3F;
-            int y = (code >> 6) & 0x3F;
-            return new MapLocation(x,y);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return null;
-    }
-
-    // !!! only call if in range of reinforcements call and battle appears to be winning
-    void clearReinforcements() {
-        try {
-            rc.writeSharedArray(30, 0);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-
     //TODO: clean up
     //write enemy archon location. should check for ids and update if changed location. can also update if one is destroyed;
     void writeEnemyArchonLocation(RobotInfo r) {
@@ -268,7 +227,6 @@ public class Communication {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return;
     }
 
     void wipeEnemyArchonLocation(int i) {
@@ -299,7 +257,6 @@ public class Communication {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return;
     }
 
     void initialSymmetry() {
