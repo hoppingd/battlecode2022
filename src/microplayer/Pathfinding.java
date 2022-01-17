@@ -1,7 +1,6 @@
 package microplayer;
 
 import battlecode.common.*;
-import javafx.scene.control.TableRow;
 
 import java.util.HashSet;
 
@@ -224,6 +223,7 @@ public class Pathfinding {
             if (bestIndex != -1) {
                 if (enemies.length > 0) {
                     try {
+                        //System.err.println("microing to " + rc.getLocation().add(directions[bestIndex]));
                         rc.move(directions[bestIndex]);
                     } catch (Throwable e){
                         e.printStackTrace();
@@ -238,14 +238,14 @@ public class Pathfinding {
         class MicroInfo{
             int numEnemies;
             int minDistToEnemy = INF;
-            int rubble = GameConstants.MAX_RUBBLE + 1;
+            int rubbleScore = GameConstants.MAX_RUBBLE + 1;
             MapLocation loc;
 
             public MicroInfo(MapLocation loc) {
                 this.loc = loc;
                 numEnemies = 0;
                 try {
-                    if (rc.onTheMap(loc)) rubble = rc.senseRubble(loc);
+                    if (rc.onTheMap(loc)) rubbleScore = (GameConstants.MAX_RUBBLE - rc.senseRubble(loc))*-1;
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
@@ -253,7 +253,14 @@ public class Pathfinding {
 
             void update(RobotInfo robot) {
                 int d = robot.location.distanceSquaredTo(loc);
-                if (d <= robot.type.actionRadiusSquared) numEnemies++;
+                if (d <= robot.type.actionRadiusSquared) {
+                    numEnemies++;
+                    try {
+                        rubbleScore +=  100 + GameConstants.MAX_RUBBLE - rc.senseRubble(robot.location);
+                    } catch (Throwable e) {
+                        e.printStackTrace();
+                    }
+                }
                 if (d < minDistToEnemy) minDistToEnemy = d;
             }
 
@@ -261,20 +268,15 @@ public class Pathfinding {
                 return rc.getType().actionRadiusSquared >= minDistToEnemy;
             }
 
-            //TODO: consider rubble
+            //TODO: improve
             boolean isBetter (MicroInfo m) {
-                if (numEnemies < m.numEnemies) return true;
-                if (numEnemies > m.numEnemies) return false;
+                if (rubbleScore < m.rubbleScore) return true;
+                if (rubbleScore > m.rubbleScore) return false;
                 if (canAttack()) {
                     if (!m.canAttack()) return true;
-                    // rubble
-                    if (rubble < m.rubble) return true;
-                    if (rubble > m.rubble) return false;
                     return minDistToEnemy >= m.minDistToEnemy;
                 }
                 if (m.canAttack()) return false;
-                if (rubble < m.rubble) return true;
-                if (rubble > m.rubble) return false;
                 return minDistToEnemy <= m.minDistToEnemy;
             }
         }

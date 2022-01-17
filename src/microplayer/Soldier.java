@@ -25,7 +25,7 @@ public class Soldier extends MyRobot {
     int task = 0;
     double mapLeadScore;
     MapLocation target;
-    boolean attackerInRange= false;
+    boolean attackerInRange = false;
 
     public Soldier(RobotController rc){
         super(rc);

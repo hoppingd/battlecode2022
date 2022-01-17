@@ -46,47 +46,6 @@ public class Miner extends MyRobot {
         }
     }
 
-    //TODO: improve
-    MapLocation moveInCombat() {
-        for (RobotInfo enemy : nearbyEnemies) {
-            //sense enemyArchons
-            if (enemy.type == RobotType.ARCHON) {
-                comm.writeEnemyArchonLocation(enemy);
-                try {
-                    if (mapLeadScore < Communication.HIGH_LEAD_THRESHOLD && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense not rush
-                        comm.setTask(4); // RUSH!
-                    }
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                }
-            }
-            // only consider offensive units
-            if (!enemy.type.canAttack()) continue;
-            //TODO: only consider combat units, with more weight given to watchtowers
-            int myForcesCount = 0;
-            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, myTeam);
-            for (RobotInfo r : myForces) {
-                if (r.type.canAttack()) {
-                    myForcesCount += r.health;
-                }
-            }
-            int enemyForcesCount = 0;
-            RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
-            for (RobotInfo r : enemyForces) {
-                if (r.type.canAttack()) {
-                    enemyForcesCount += r.health;
-                }
-            }
-
-            if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer TODO: flee from highest enemyForcesCount
-                explore.reset();
-                //return flee(enemy.location);
-                return comm.HQloc;
-            }
-        }
-        return null;
-    }
-
     MapLocation getMineProspect() {
         MapLocation myLoc = rc.getLocation();
         // consider giving up if too far away
@@ -187,8 +146,9 @@ public class Miner extends MyRobot {
         }
     }
 
-    void tryMove(){
-        MapLocation loc = moveInCombat();
+    // miners ignore soldiers
+    void tryMove() {
+        MapLocation loc = null;
         if (rc.getHealth() < DISINTEGRATE_HEALTH) loc = getMineProspect(); // if too far from HQ, don't bother
         if (loc == null) loc = getClosestMine();
         if (loc != null){

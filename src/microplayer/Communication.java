@@ -27,7 +27,7 @@
 // [26] Map Lead Score: score
 // [27] Spawn counter = count
 // [28] Crunch index = idx
-// [29-63] Enemy logs = yyyy yyxx xxxx
+// [29-63] Enemy logs and ids = yyyy yyxx xxxx / id (6 bits)
 
 package microplayer;
 
@@ -62,7 +62,7 @@ public class Communication {
 
     static final int HIGH_LEAD_THRESHOLD = 2000;
     static final int LOW_LEAD_THRESHOLD = 25;
-    static final int MAX_LOGGED_ENEMIES = 25;
+    static final int MAX_LOGGED_ENEMIES = 4;
 
     RobotController rc;
     MapLocation HQloc = null;
@@ -84,6 +84,7 @@ public class Communication {
         archonsAlive = numArchons = rc.getArchonCount();
         H = rc.getMapHeight();
         W = rc.getMapWidth();
+        loggedEnemies = new LogEntry[MAX_LOGGED_ENEMIES];
         allyArchons = new MapLocation[numArchons];
         enemyArchons = new MapLocation[numArchons];
     }
@@ -149,9 +150,9 @@ public class Communication {
             for (int i = ENEMY_LOGS_ARRAY_START; i < ENEMY_LOGS_ARRAY_START + MAX_LOGGED_ENEMIES; i++) {
                 int code = rc.readSharedArray(i);
                 if (code != 0) {
+                    int id = rc.readSharedArray(i + MAX_LOGGED_ENEMIES);
                     int x = code & 0x3F;
                     int y = (code >> 6) & 0x3F;
-                    int id = (code >> 12) & 0x3F;
                     loggedEnemies[i - ENEMY_LOGS_ARRAY_START] = new LogEntry(new MapLocation(x, y), id);
                 }
                 else {
@@ -167,8 +168,9 @@ public class Communication {
     void writeEnemyToLog(MapLocation loc, int id) {
         try {
             int freeIndex = -1;
-            int code = (((id << 6) + loc.y) << 6) + loc.x;
+            int code = (loc.y << 6) + loc.x;
             for (int i = 0; i < MAX_LOGGED_ENEMIES; i++) {
+                if (loggedEnemies[i] == null) continue;
                 if (loggedEnemies[i].id == id) {
                     if (loggedEnemies[i].location.equals(loc)) return; // found log, but has same location
                     rc.writeSharedArray(i + ENEMY_LOGS_ARRAY_START, code);
@@ -179,9 +181,12 @@ public class Communication {
             // found an emptied log, so we use it
             if (freeIndex != -1) {
                 rc.writeSharedArray(freeIndex + ENEMY_LOGS_ARRAY_START, code);
+                rc.writeSharedArray(freeIndex + ENEMY_LOGS_ARRAY_START + MAX_LOGGED_ENEMIES, id);
             }
             // evict a random log and write
-            rc.writeSharedArray((int)Math.random()*MAX_LOGGED_ENEMIES + ENEMY_LOGS_ARRAY_START, code);
+            int newIndex = (int)Math.random()*MAX_LOGGED_ENEMIES;
+            rc.writeSharedArray(newIndex + ENEMY_LOGS_ARRAY_START, code);
+            rc.writeSharedArray(newIndex + ENEMY_LOGS_ARRAY_START + MAX_LOGGED_ENEMIES, id);
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -190,6 +195,7 @@ public class Communication {
     void deleteEnemyFromLog(int id) {
         try {
             for (int i = 0; i < MAX_LOGGED_ENEMIES; i++) {
+                if (loggedEnemies[i] == null) continue;
                 if (loggedEnemies[i].id == id) {
                     rc.writeSharedArray(i + ENEMY_LOGS_ARRAY_START, 0);
                     loggedEnemies[i] = null;
