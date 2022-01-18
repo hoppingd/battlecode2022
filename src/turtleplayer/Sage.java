@@ -1,4 +1,4 @@
-package sageplayer;
+package turtleplayer;
 
 import battlecode.common.*;
 
@@ -44,9 +44,9 @@ public class Sage extends MyRobot {
         tryMove();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.SAGE.visionRadiusSquared, enemyTeam);
         tryAttack();
+
     }
 
-    //TODO: attack on low cd tiles
     void tryAttack(){ // shoot lowest health with dist as tiebreaker
         if (!rc.isActionReady()) return;
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SAGE.actionRadiusSquared, enemyTeam);
@@ -153,7 +153,6 @@ public class Sage extends MyRobot {
                 break;
             }
             case 4: { // crunch
-                task = comm.getTask();
                 MapLocation target = moveInCombat();
                 comm.readEnemyArchonLocations();
                 int crunchIdx = comm.getCrunchIdx();
@@ -167,6 +166,7 @@ public class Sage extends MyRobot {
                             boolean targetInRange = rc.canSenseRobotAtLocation(comm.enemyArchons[crunchIdx]);
                             if (!targetInRange || rc.senseRobotAtLocation(comm.enemyArchons[crunchIdx]).type != RobotType.ARCHON) { // archon is dead or has moved
                                 comm.wipeEnemyArchonLocation(crunchIdx);
+                                comm.incCrunchIdx();
                             }
                             // if archon, don't update crunch index
                         }

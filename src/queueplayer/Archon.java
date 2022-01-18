@@ -1,4 +1,4 @@
-package sageplayer;
+package queueplayer;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
@@ -68,6 +68,8 @@ public class Archon extends MyRobot {
     int currGold = 0;
     int task = 3;
 
+    int P1_MINERS_MODIFIER = 0;
+
     public Archon(RobotController rc){
         super(rc);
         H = rc.getMapHeight();
@@ -79,12 +81,11 @@ public class Archon extends MyRobot {
         comm.writeAllyArchonLocation(leadScore);
         mapCenter = new MapLocation((W - 1)/2, (H - 1)/2);
         comm.setTask(Communication.EXPLORE); // for now, we are ignoring scouting and starting with harass/protecting miners
-        //remove round 1000 lab
-        comm.setBuilderBuilt();
-        comm.setLabBuilt();
+        if (Math.sqrt(W*H) < 35) P1_MINERS_MODIFIER = 1; // if map is small make less miners
     }
 
     public void play() {
+        task = comm.getTask(); // check if emergency, if so we'll build soldiers
         if (comm.spawnID >= rc.getArchonCount()) comm.fixSpawnID(); // TODO: FIX spawn id if archon dies...
         currRound = rc.getRoundNum();
         currLead = rc.getTeamLeadAmount(myTeam);
@@ -106,7 +107,7 @@ public class Archon extends MyRobot {
         if (rc.getMode() == RobotMode.TURRET) {
             checkForAttackers(); //sends emergency to all soldiers if x enemies in archon vision
             if (!arrived && currRound > birthday + 2) {
-                if (minersBuilt >= P1_MINERS - comm.numArchons || currRound > Communication.P2_START) { // archon voyage
+                if (minersBuilt >= P1_MINERS - comm.numArchons - P1_MINERS_MODIFIER || currRound > Communication.P2_START) { // archon voyage
                     try {
                         if (rc.isTransformReady()) {
                             rc.transform();
@@ -130,7 +131,7 @@ public class Archon extends MyRobot {
     // TODO: only call emergency if troops are really needed
     void checkForAttackers() {
         if (!arrived) return;
-        RobotInfo[] robots = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
+        RobotInfo[] robots = rc.senseNearbyRobots(RobotType.ARCHON.visionRadiusSquared, enemyTeam);
         for (RobotInfo r : robots) {
             if (r.getType().canAttack()) {
                 comm.setEmergencyLoc(r.location);
@@ -146,20 +147,61 @@ public class Archon extends MyRobot {
         if (comm.HQloc == null) {
             comm.readHQloc();
         }
+        MapLocation target = getTransformLocation();
         // TODO: consider rubble and danger
-        if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, (int) Math.round(Math.sqrt(H*W)))) {
-            try {
-                if (rc.isTransformReady()) {
-                    rc.transform();
-                    arrived = true;
+        if (target != null) {
+            if (rc.getLocation().equals(target)) {
+                try {
+                    if (rc.isTransformReady()) {
+                        rc.transform();
+                        arrived = true;
+                    }
+                } catch (Throwable t) {
+                    t.printStackTrace();
                 }
-            } catch (Throwable t) {
-                t.printStackTrace();
+            }
+            else {
+                bfs.move(target);
             }
         }
         else {
             bfs.move(comm.HQloc);
         }
+    }
+
+    MapLocation getTransformLocation() {
+        MapLocation myLoc = rc.getLocation();
+        MapLocation bestLoc = null;
+        int bestDist = 10000;
+        int bestRubble = 10000;
+        try {
+            MapLocation[] cells = rc.getAllLocationsWithinRadiusSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared);
+            for (MapLocation cell : cells) {
+                if (!rc.canSenseLocation(cell) || (rc.isLocationOccupied(cell) && !myLoc.equals(cell))) continue;
+                int rubble = rc.senseRubble(cell);
+                if (bestLoc == null) {
+                    bestLoc = cell;
+                    bestDist = myLoc.distanceSquaredTo(cell);
+                    bestRubble = rubble;
+                }
+                else if (rubble < bestRubble) {
+                    bestLoc = cell;
+                    bestDist = myLoc.distanceSquaredTo(cell);
+                    bestRubble = rubble;
+                }
+                else if (rubble == bestRubble) {
+                    int d1 = myLoc.distanceSquaredTo(cell);
+                    if (d1 < bestDist) {
+                        bestLoc = cell;
+                        bestDist = d1;
+                    }
+                }
+
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bestLoc;
     }
 
     boolean shouldBuildMiner() {
@@ -172,7 +214,7 @@ public class Archon extends MyRobot {
             else if (task == Communication.EMERGENCY) {
                 return false; // emergency
             }
-            else if (minersBuilt < P1_MINERS - comm.numArchons) { // hq build miners
+            else if (minersBuilt < P1_MINERS - comm.numArchons - P1_MINERS_MODIFIER) { // hq build miners
                 return true;
             }
             else if (builderCount < P1_BUILDERS && (mapLeadScore > Communication.HIGH_LEAD_THRESHOLD)) { // need more deposits or need to rush towers
@@ -204,12 +246,7 @@ public class Archon extends MyRobot {
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
             if (comm.getSpawnCount() % 3 == 0) {
-                if (comm.labIsBuilt()) return true;
-                if (!comm.isBuilderBuilt()) {
-                    if (currLead >= RobotType.BUILDER.buildCostLead + RobotType.MINER.buildCostLead) return true;
-                    return false;
-                }
-                if (currLead >= RobotType.LABORATORY.buildCostLead + RobotType.MINER.buildCostLead) return true;
+                return true;
             }
         }
         return false;
@@ -234,10 +271,8 @@ public class Archon extends MyRobot {
         }
         // PHASE 4
         else {
-            if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            if (!comm.isBuilderBuilt()) return true;
+            return false;
         }
-        return false;
     }
 
     boolean shouldBuildSoldier() {
@@ -280,14 +315,8 @@ public class Archon extends MyRobot {
         // PHASE 4
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            if (comm.labIsBuilt()) return true;
-            if (!comm.isBuilderBuilt()) {
-                if (currLead >= RobotType.BUILDER.buildCostLead + RobotType.SOLDIER.buildCostLead) return true;
-                return false;
-            }
-            if (currLead >= RobotType.LABORATORY.buildCostLead + RobotType.SOLDIER.buildCostLead) return true;
+            return true;
         }
-        return false;
     }
 
     boolean shouldBuildSage() {
@@ -297,7 +326,7 @@ public class Archon extends MyRobot {
     //TODO: cleanup, spawn toward emergency, spawn in safe location, etc
     boolean tryBuild() {
         if (currRound < Communication.P3_START && comm.getSpawnCount() % rc.getArchonCount() != comm.spawnID) return false;
-        task = comm.getTask(); // check if emergency, if so we'll build soldiers
+        if (!rc.isActionReady()) return false;
         MapLocation myLoc = rc.getLocation();
         if (currLead >= RobotType.MINER.buildCostLead && shouldBuildMiner()) {
             MapLocation closestMine = getClosestMine();
@@ -345,7 +374,6 @@ public class Archon extends MyRobot {
                     rc.buildRobot(RobotType.BUILDER, myLoc.directionTo(bestLoc));
                     comm.incSpawnCounter();
                     builderCount++;
-                    comm.setBuilderBuilt();
                     return true;
                 }
             } catch (Throwable t) {
@@ -403,20 +431,31 @@ public class Archon extends MyRobot {
     }
 
     void tryRepair() {
+        if (!rc.isActionReady()) return;
         RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
         MapLocation bestLoc = null;
         int lowestHP = 10000;
+        boolean attackerInRange = false;
+        // lowest hp under max health, prioritizing attackers
         for (RobotInfo r : allies){
-            if (rc.canRepair(r.location)){
-                int hp = r.health;
-                if (hp < lowestHP) {
-                    lowestHP = hp;
-                    bestLoc = r.location;
-                }
+            if (!rc.canRepair(r.getLocation())) continue;
+            int hp = r.getHealth();
+            if (!attackerInRange && r.getType().canAttack() && hp < r.getType().getMaxHealth(r.getLevel())) {
+                attackerInRange = true;
+                lowestHP = r.getHealth();
+                bestLoc = r.location;
+            }
+            if (hp < lowestHP && hp < r.getType().getMaxHealth(r.getLevel())) {
+                if (attackerInRange && !r.getType().canAttack()) break;
+                lowestHP = hp;
+                bestLoc = r.location;
             }
         }
         try {
-            if (bestLoc != null) rc.repair(bestLoc);
+            if (bestLoc != null) {
+                //System.err.println("repairing at " + bestLoc);
+                rc.repair(bestLoc);
+            }
         } catch (Throwable t) {
             t.printStackTrace();
         }

@@ -1,4 +1,4 @@
-package sageplayer;
+package queueplayer;
 
 import battlecode.common.*;
 
@@ -16,7 +16,7 @@ public class Miner extends MyRobot {
     };
 
     static final int MIN_LEAD_TO_MINE = 6;
-    static final int DISINTEGRATE_HEALTH = 21;
+    static final int DISINTEGRATE_HEALTH = 7;
 
     Direction[] dirs = Direction.allDirections();
     int H, W;
@@ -38,53 +38,12 @@ public class Miner extends MyRobot {
     public void play(){
         if (comm.HQloc == null) comm.readHQloc();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
-        tryDisintegrate();
+        //tryDisintegrate();
         tryMine();
         if (rc.isMovementReady()) {
             tryMove();
             tryMine();
         }
-    }
-
-    //TODO: improve
-    MapLocation moveInCombat() {
-        for (RobotInfo enemy : nearbyEnemies) {
-            //sense enemyArchons
-            if (enemy.type == RobotType.ARCHON) {
-                comm.writeEnemyArchonLocation(enemy);
-                try {
-                    if (mapLeadScore < Communication.HIGH_LEAD_THRESHOLD && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense not rush
-                        comm.setTask(4); // RUSH!
-                    }
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                }
-            }
-            // only consider offensive units
-            if (!enemy.type.canAttack()) continue;
-            //TODO: only consider combat units, with more weight given to watchtowers
-            int myForcesCount = 0;
-            RobotInfo[] myForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, myTeam);
-            for (RobotInfo r : myForces) {
-                if (r.type.canAttack()) {
-                    myForcesCount += r.health;
-                }
-            }
-            int enemyForcesCount = 0;
-            RobotInfo[] enemyForces = rc.senseNearbyRobots(enemy.location, RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
-            for (RobotInfo r : enemyForces) {
-                if (r.type.canAttack()) {
-                    enemyForcesCount += r.health;
-                }
-            }
-
-            if (myForcesCount < enemyForcesCount * 2) { // arbitrary modifier to be a bit safer TODO: flee from highest enemyForcesCount
-                explore.reset();
-                //return flee(enemy.location);
-                return comm.HQloc;
-            }
-        }
-        return null;
     }
 
     MapLocation getMineProspect() {
@@ -122,31 +81,23 @@ public class Miner extends MyRobot {
         }
     }
 
-    // flees to the lowest rubble tile away from enemy
-    MapLocation flee(MapLocation enemy) {
-        MapLocation myLoc = rc.getLocation();
-        int bestRubble = GameConstants.MAX_RUBBLE;
-        MapLocation bestLoc = null;
-        int d1 = myLoc.distanceSquaredTo(enemy);
-        try {
-            for (Direction dir : fleeDirections) {
-                MapLocation prospect = myLoc.add(dir);
-                if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
-                if (prospect.distanceSquaredTo(enemy) > d1) {
-                    int r = rc.senseRubble(prospect);
-                    if (r < bestRubble) {
-                        bestLoc = prospect;
-                        bestRubble = r;
-                    }
-                    //TODO: tiebreak with distance
-                }
-
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
+    // flees to HQ and resets explore if danger
+    MapLocation flee() {
+        RobotInfo[] nearbyAllies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, myTeam);
+        int numAllies = 0;
+        int numEnemies = 0;
+        for (RobotInfo r : nearbyAllies) {
+            if (r.getType().canAttack()) numAllies++;
         }
-        //System.err.println("miner fleeing at " + myLoc + " fleeing " + enemy + " to " + bestLoc);
-        return bestLoc;
+        for (RobotInfo r : nearbyEnemies) {
+            if (r.getType().canAttack()) numEnemies++;
+        }
+        if (numEnemies > numAllies) {
+            explore.reset();
+            return comm.HQloc;
+        }
+
+        return null;
     }
 
     // TODO: improve
@@ -187,9 +138,10 @@ public class Miner extends MyRobot {
         }
     }
 
-    void tryMove(){
-        MapLocation loc = moveInCombat();
-        if (rc.getHealth() < DISINTEGRATE_HEALTH) loc = getMineProspect(); // if too far from HQ, don't bother
+    // miners ignore soldiers TODO: mine on low rubble locations
+    void tryMove() {
+        MapLocation loc = flee();
+        //if (rc.getHealth() < DISINTEGRATE_HEALTH && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
         if (loc == null) loc = getClosestMine();
         if (loc != null){
             bfs.move(loc);

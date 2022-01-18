@@ -29,9 +29,8 @@
 // [28] Crunch index = idx
 // [29] isBuilderBuilt = 0|1
 // [30] Call for Reinforcements = numEnemies (4 bits) location of enemy (12 bits)
-// [31] Home base miner = 0|1
 
-package sageplayer;
+package turtleplayer;
 
 import battlecode.common.GameConstants;
 import battlecode.common.MapLocation;
@@ -60,7 +59,7 @@ public class Communication {
     //P4: start stockpiling lead for watchtowers and laboratory
     static final int P2_START = 80;
     static final int P3_START = 200; //survived rush, hopefully
-    static final int P4_START = 1000;
+    static final int P4_START = 1200;
     static final int P4_SAVINGS = 325;
 
     static final int HIGH_LEAD_THRESHOLD = 2000;
@@ -217,7 +216,7 @@ public class Communication {
             int enemies2 = (code >> 12) & 0xF;
             if (enemies1 > enemies2) {
                 int newCode = (enemies1 << 12) + (loc.y << 6) + loc.x;
-                //System.err.println("reinforce against " + enemies1 + " at " + loc);
+                //System.err.println("reinforce against " + enemies1 + " enemies");
                 rc.writeSharedArray(30, newCode);
             }
         } catch (Throwable t) {
@@ -436,6 +435,24 @@ public class Communication {
             t.printStackTrace();
         }
         return;
+    }
+
+    int getMinerFlag() {
+        int bit = 0;
+        try {
+            bit = rc.readSharedArray(31);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bit;
+    }
+
+    void setMinerFlag (int flag) {
+        try {
+            rc.writeSharedArray(31, flag);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 
     boolean labIsBuilt() {

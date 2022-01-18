@@ -1,4 +1,4 @@
-package sageplayer;
+package microplayer;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
