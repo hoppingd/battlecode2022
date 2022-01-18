@@ -33,7 +33,7 @@ public class Archon extends MyRobot {
             Direction.NORTHWEST,
     };
 
-    static final int P1_MINERS = 6;
+    static final int P1_MINERS = 5;
     static final int P1_BUILDERS = 5;
     static final int P2_BUILDERS = 10;
     static final int CRUNCH_ROUND = 1500;

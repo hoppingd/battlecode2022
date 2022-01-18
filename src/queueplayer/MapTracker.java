@@ -1,4 +1,4 @@
-package newplayer;
+package queueplayer;
 
 import battlecode.common.MapLocation;
 

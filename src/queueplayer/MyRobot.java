@@ -1,4 +1,4 @@
-package advancedplayer;
+package queueplayer;
 
 import battlecode.common.Direction;
 import battlecode.common.MapLocation;
@@ -37,9 +37,12 @@ public abstract class MyRobot {
         comm.init();
         bfs.initTurn();
         explore.initTurn();
+        //comm.readMessages();
+        //comm.debugDraw();
     }
 
     void endTurn(){
+        //comm.run();
         explore.initialize();
         explore.markSeen();
     }

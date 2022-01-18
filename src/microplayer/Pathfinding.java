@@ -223,6 +223,54 @@ public class Pathfinding {
             if (bestIndex != -1) {
                 if (enemies.length > 0) {
                     try {
+                        //try attacking if fleeing all combat
+                        if(rc.isActionReady() && microInfo[bestIndex].numEnemies == 0) {
+                            RobotInfo[] enemiesToAttack = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
+                            MapLocation bestLoc = null;
+                            boolean attackerInRange = false;
+                            // don't attack miners if soldiers in view
+                            for (RobotInfo r : enemies) {
+                                if (r.type.canAttack()) {
+                                    attackerInRange = true;
+                                }
+                            }
+                            int bestHealth = 10000;
+                            int bestRubble = GameConstants.MAX_RUBBLE;
+                            for (RobotInfo r : enemiesToAttack) {
+                                MapLocation enemyLoc = r.getLocation();
+                                boolean isAttacker = r.type.canAttack();
+                                // if there are attackers, ignore all non-attackers and reset variables
+                                if (!isAttacker && attackerInRange) continue;
+                                int rubble = GameConstants.MAX_RUBBLE;
+                                try {
+                                    rubble = rc.senseRubble(r.location);
+                                } catch (Throwable t) {
+                                    t.printStackTrace();
+                                }
+                                if (isAttacker && !attackerInRange) {
+                                    bestHealth = 10000;
+                                    bestRubble = rubble;
+                                    attackerInRange = true;
+                                }
+                                // shoot lowest health with rubble as tiebreaker
+                                if (r.health < bestHealth) {
+                                    bestHealth = r.health;
+                                    bestRubble = rubble;
+                                    bestLoc = enemyLoc;
+                                }
+                                else if (r.health == bestHealth && rubble < bestRubble) {
+                                    bestRubble = rubble;
+                                    bestLoc = enemyLoc;
+                                }
+                            }
+                            try {
+                                if (bestLoc != null) {
+                                    rc.attack(bestLoc);
+                                }
+                            } catch (Throwable t) {
+                                t.printStackTrace();
+                            }
+                        }
                         //System.err.println("microing to " + rc.getLocation().add(directions[bestIndex]));
                         rc.move(directions[bestIndex]);
                     } catch (Throwable e){
@@ -253,7 +301,7 @@ public class Pathfinding {
 
             void update(RobotInfo robot) {
                 int d = robot.location.distanceSquaredTo(loc);
-                if (d <= robot.type.actionRadiusSquared) {
+                if (d <= robot.type.actionRadiusSquared && robot.getType().canAttack()) {
                     numEnemies++;
                     try {
                         rubbleScore +=  100 + GameConstants.MAX_RUBBLE - rc.senseRubble(robot.location);

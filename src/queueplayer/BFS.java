@@ -1,4 +1,4 @@
-package advancedplayer;
+package queueplayer;
 
 import battlecode.common.*;
 
@@ -79,6 +79,9 @@ public abstract class BFS {
         }
     }
 
+    boolean doMicro() {
+        return path.doMicro();
+    }
 
     abstract Direction getBestDir(MapLocation target);
 

@@ -1,4 +1,4 @@
-package newplayer;
+package queueplayer;
 
 import battlecode.common.Clock;
 import battlecode.common.Direction;
@@ -7,10 +7,13 @@ import battlecode.common.RobotController;
 
 public class Exploration {
 
+    static final int NUM_INTERESTING = 9;
+
     RobotController rc;
     static Direction[] dirPath;
     Direction lastDirMoved = null;
     MapLocation exploreTarget = null;
+    MapLocation[] pointsOfInterest;
 
     int H, W;
     boolean[][] visited;
@@ -33,10 +36,15 @@ public class Exploration {
         visited = new boolean[W][];
         initialX = rc.getLocation().x;
         initialY = rc.getLocation().y;
+        initalizePointsOfInterest();
     }
 
     void initTurn() {
 
+    }
+
+    void reset() {
+        exploreTarget = null;
     }
 
     void initialize() {
@@ -63,6 +71,25 @@ public class Exploration {
         return exploreTarget;
     }
 
+    //picks from pool of unexplored interesting targets. if fails, goes to random.
+    MapLocation getExplore2Target(){
+        if (exploreTarget != null && !hasVisited(exploreTarget)) return exploreTarget;
+        int tries = 2; // dont want to many attemps, or we'll keep pathing to dangerous locations
+        for (int i = tries; i-- > 0; ){
+            int j = (int)(Math.random()*NUM_INTERESTING);
+            exploreTarget = pointsOfInterest[j];
+            if (!hasVisited(exploreTarget)) return exploreTarget;
+        }
+        return getExploreTarget();
+    }
+
+    MapLocation getExplore3Target(){
+        if (exploreTarget != null && !hasVisited(exploreTarget)) return exploreTarget;
+        exploreTarget = pointsOfInterest[4]; // map center
+        if (!hasVisited(exploreTarget)) return exploreTarget;
+        return getExploreTarget();
+    }
+
     boolean hasVisited (MapLocation loc){
         if (!initialized) return false;
         return visited[loc.x][loc.y];
@@ -82,6 +109,26 @@ public class Exploration {
         } catch (Throwable e){
             e.printStackTrace();
         }
+    }
+
+    // 4 corners, 4 midopints, and center
+    void initalizePointsOfInterest() {
+        pointsOfInterest = new MapLocation[NUM_INTERESTING];
+        int midH = H/2;
+        int midW = W/2;
+        int H1 = H - 1;
+        int W1 = W - 1;
+        pointsOfInterest[0] = new MapLocation(0,0);
+        pointsOfInterest[1] = new MapLocation(0, midH);
+        pointsOfInterest[2] = new MapLocation(0, H1);
+        pointsOfInterest[3] = new MapLocation(midW,0);
+        pointsOfInterest[4] = new MapLocation(midW, midH);
+        pointsOfInterest[5] = new MapLocation(midW, H1);
+        pointsOfInterest[6] = new MapLocation(W1,0);
+        pointsOfInterest[7] = new MapLocation(W1, midH);
+        pointsOfInterest[8] = new MapLocation(W1, H1);
+
+
     }
     void fillDirPath() {
         switch (visionRadius) {

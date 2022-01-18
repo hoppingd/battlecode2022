@@ -1,4 +1,4 @@
-package advancedplayer;
+package queueplayer;
 
 import battlecode.common.*;
 
