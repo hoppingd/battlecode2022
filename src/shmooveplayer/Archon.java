@@ -125,6 +125,7 @@ public class Archon extends MyRobot {
             if (!tryBuild()) tryRepair();
         }
         else {
+            comm.readHQloc();
             tryMove();
             comm.incSpawnCounter(); // avoid getting stuck;
         }
