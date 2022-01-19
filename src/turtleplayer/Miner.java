@@ -316,7 +316,6 @@ public class Miner extends MyRobot {
         }
         nearestCorner = new MapLocation(x,y);
         int d1 = comm.HQloc.distanceSquaredTo(nearestCorner);
-        // if not near corner, build around HQ TODO: if close to wall, builder should build near wall, not HQ
         if (comm.HQloc.distanceSquaredTo(new MapLocation(x, H1/2)) < d1) {
             nearestCorner = new MapLocation(x, comm.HQloc.y);
         }

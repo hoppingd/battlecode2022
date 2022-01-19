@@ -1,10 +1,10 @@
-package shmooveplayer;
+package tortoiseplayer;
 
 import battlecode.common.*;
 
-public class Soldier extends MyRobot {
+public class Sage extends MyRobot {
 
-    static final Direction[] moveDirections = {
+    static final Direction[] fleeDirections = {
             Direction.NORTH,
             Direction.NORTHEAST,
             Direction.EAST,
@@ -24,12 +24,13 @@ public class Soldier extends MyRobot {
 
     MapLocation nearestCorner;
     int task = 0;
+    RobotInfo[] nearbyEnemies;
     double mapLeadScore;
     MapLocation target;
     MapLocation nearestLoggedEnemy;
     boolean healing = false;
 
-    public Soldier(RobotController rc){
+    public Sage(RobotController rc){
         super(rc);
         birthday = rc.getRoundNum();
         H = rc.getMapHeight();
@@ -38,27 +39,27 @@ public class Soldier extends MyRobot {
         enemyTeam = myTeam.opponent();
         comm.readHQloc();
         nearestCorner = getNearestCorner();
+        nearbyEnemies = rc.senseNearbyRobots(RobotType.SAGE.visionRadiusSquared, enemyTeam);
         mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
     }
 
     public void play() {
-        target = null;
+        task = comm.getTask();
         nearestLoggedEnemy = comm.getLoggedEnemies();
         comm.readHQloc();
-        task = comm.getTask();
         if (rc.getHealth() == rc.getType().getMaxHealth(rc.getLevel())) {
             healing = false;
         }
-        if (!bfs.doMicro()) { // TODO: flee if health under threshold
+        if (!bfs.doMicro()) {
             tryMove();
         }
         tryAttack();
     }
 
+    // TODO: optimize health targeting for sage
     void tryAttack(){
         if (!rc.isActionReady()) return;
-        RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
-        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
+        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SAGE.actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
         boolean attackerInRange = false;
         // don't attack miners if soldiers in view
@@ -66,6 +67,7 @@ public class Soldier extends MyRobot {
             if (r.type.canAttack()) {
                 comm.writeEnemyToLog(r.location);
                 attackerInRange = true;
+                break;
             }
         }
         int bestHealth = 10000;
@@ -109,6 +111,9 @@ public class Soldier extends MyRobot {
     // TODO: cleanup
     void tryMove(){
         if (!rc.isMovementReady()) return;
+        if (rc.getRoundNum() == birthday) {
+            task = comm.getTask();
+        }
         switch (task) {
             case 0: {// scout
 
@@ -141,7 +146,7 @@ public class Soldier extends MyRobot {
                 break;
             }
             case 3: { // explore
-                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
+                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
                 boolean attackerInRange = false;
                 for (RobotInfo r : nearbyEnemies) {
                     if (r.type.canAttack()) {
@@ -156,12 +161,10 @@ public class Soldier extends MyRobot {
                     else {
                         if (!healing) healing = true;
                         if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
-                            //System.err.println("healing...");
                             target = rc.getLocation();
                         }
                         else {
                             target = comm.HQloc;
-                            //System.err.println("retreating...");
                         }
                     }
                 }
@@ -173,6 +176,7 @@ public class Soldier extends MyRobot {
                 break;
             }
             case 4: { // crunch TODO: improve. get lowest index or nearest non null archon location. bug when archon is destroyed but not crunching.
+                task = comm.getTask();
                 comm.readEnemyArchonLocations();
                 int crunchIdx = comm.getCrunchIdx();
                 if (comm.enemyArchons[crunchIdx] != null) {
@@ -205,8 +209,56 @@ public class Soldier extends MyRobot {
         }
     }
 
+    MapLocation getGreedyAttackTile(MapLocation pursuitTarget) {
+        MapLocation myLoc = rc.getLocation();
+        MapLocation bestLoc = myLoc;
+        try {
+            int bestRubble = rc.senseRubble(myLoc);
+            for (Direction dir : fleeDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!rc.canMove(dir)) continue; // reduce bytecode?
+                if (prospect.distanceSquaredTo(pursuitTarget) <= RobotType.SAGE.visionRadiusSquared) {
+                    int r = rc.senseRubble(prospect);
+                    // in case of tie, stay at farther range
+                    if (r < bestRubble || (r == bestRubble && prospect.distanceSquaredTo(pursuitTarget) > myLoc.distanceSquaredTo(pursuitTarget))) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        System.err.println("pursuit target: " + pursuitTarget + ", greedily moved to " + bestLoc);
+        return bestLoc;
+    }
+    // flees to the lowest rubble tile away from enemy
+    MapLocation flee(MapLocation enemy) {
+        MapLocation myLoc = rc.getLocation();
+        int bestRubble = GameConstants.MAX_RUBBLE;
+        MapLocation bestLoc = null;
+        int d1 = myLoc.distanceSquaredTo(enemy);
+        try {
+            for (Direction dir : fleeDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
+                if (prospect.distanceSquaredTo(enemy) > d1) {
+                    int r = rc.senseRubble(prospect);
+                    if (r < bestRubble) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                    //TODO: tiebreak with distance
+                }
+
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bestLoc;
+    }
+
     void senseEnemyArchons() { // check for enemy archon and write
-        RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         for (RobotInfo r : nearbyEnemies) {
             if (r.getType() == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(r);

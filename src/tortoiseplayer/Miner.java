@@ -1,4 +1,4 @@
-package shmooveplayer;
+package tortoiseplayer;
 
 import battlecode.common.*;
 
@@ -25,7 +25,10 @@ public class Miner extends MyRobot {
 
     RobotInfo[] nearbyEnemies;
     double mapLeadScore;
+    double turtleRadius;
     int minerCode = 0;
+    MapLocation nearestCorner;
+    int task = 0;
 
     public Miner(RobotController rc){
         super(rc);
@@ -36,10 +39,12 @@ public class Miner extends MyRobot {
         birthday = rc.getRoundNum();
         comm.readHQloc();
         mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
+        turtleRadius = Math.pow(H*W, .6);
     }
 
     public void play(){
         comm.readHQloc();
+        task = comm.getTask();
         // alternate explore targets
         if (rc.getRoundNum() == birthday) {
             minerCode = comm.getMinerCode();
@@ -52,7 +57,7 @@ public class Miner extends MyRobot {
         }
         comm.getLoggedEnemies();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
-        //tryDisintegrate();
+        tryDisintegrate();
         tryMine();
         if (rc.isMovementReady()) {
             tryMove();
@@ -60,6 +65,7 @@ public class Miner extends MyRobot {
         }
     }
 
+    // TODO: start farms closer to archon?
     MapLocation getMineProspect() {
         MapLocation myLoc = rc.getLocation();
         // consider giving up if too far away
@@ -87,7 +93,7 @@ public class Miner extends MyRobot {
         if (!rc.isActionReady()) return;
         MapLocation myLoc = rc.getLocation();
         try {
-            if ((myLoc.distanceSquaredTo(comm.HQloc) <= RobotType.ARCHON.visionRadiusSquared) && rc.senseLead(myLoc) == 0) {
+            if ((myLoc.distanceSquaredTo(comm.HQloc) <= turtleRadius) && rc.senseLead(myLoc) == 0) {
                 rc.disintegrate();
             }
         } catch (Throwable t) {
@@ -121,7 +127,7 @@ public class Miner extends MyRobot {
     void tryMine(){
         MapLocation myLoc = rc.getLocation();
         int leadToLeave = 1;
-        if (comm.HQloc != null && myLoc.distanceSquaredTo(comm.HQloc) > myLoc.distanceSquaredTo(comm.getHQOpposite())) {
+        if (comm.HQloc != null && myLoc.distanceSquaredTo(comm.HQloc) > turtleRadius) {
             leadToLeave = 0;
         }
         try {
@@ -155,22 +161,30 @@ public class Miner extends MyRobot {
         }
     }
 
-    // miners ignore soldiers TODO: mine on low rubble locations
     void tryMove() {
-        MapLocation loc = flee();
-        //if (rc.getHealth() < DISINTEGRATE_HEALTH && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
-        if (loc == null) loc = getClosestMine();
-        if (loc != null){
-            bfs.move(loc);
-            return;
+        switch(task) {
+            case 1: { // defensive miner
+                MapLocation loc = flee();
+
+                break;
+            }
+            default: {
+                MapLocation loc = flee();
+                if (rc.getHealth() < DISINTEGRATE_HEALTH && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
+                if (loc == null) loc = getClosestMine();
+                if (loc != null){
+                    bfs.move(loc);
+                    return;
+                }
+                if (minerCode == 0) { // switch on miner code?
+                    loc = explore.getExplore2Target(); // use alternate function to find points of interest
+                }
+                else {
+                    loc = explore.getExploreTarget();
+                }
+                bfs.move(loc);
+            }
         }
-        if (minerCode == 0) { // switch on miner code?
-            loc = explore.getExplore2Target(); // use alternate function to find points of interest
-        }
-        else {
-            loc = explore.getExploreTarget();
-        }
-        bfs.move(loc);
     }
 
     MapLocation getClosestMine(){
@@ -215,4 +229,30 @@ public class Miner extends MyRobot {
         return bestMine;
     }
 
+    void getNearestCorner() {
+        int x;
+        int y;
+        int W1 = W - 1;
+        int H1 = H - 1;
+        if(W1 - comm.HQloc.x > comm.HQloc.x) {
+            x = 0;
+        }
+        else {
+            x = W1;
+        }
+        if(H1 - comm.HQloc.y > comm.HQloc.y) {
+            y = 0;
+        }
+        else {
+            y = H1;
+        }
+        nearestCorner = new MapLocation(x,y);
+        int d1 = comm.HQloc.distanceSquaredTo(nearestCorner);
+        if (comm.HQloc.distanceSquaredTo(new MapLocation(x, H1/2)) < d1) {
+            nearestCorner = new MapLocation(x, comm.HQloc.y);
+        }
+        else if (comm.HQloc.distanceSquaredTo(new MapLocation(W1/2, y)) < d1) {
+            nearestCorner = new MapLocation(comm.HQloc.x, y);
+        }
+    }
 }

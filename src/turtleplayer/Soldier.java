@@ -130,7 +130,6 @@ public class Soldier extends MyRobot {
             }
             case 1: {// defensive lattice
                 //TODO: if haven't seen an attack in ~100 turns, crunch / lead farm
-                //TODO: in early turns don't hard path to target, path smart in combat then establish lattice
                 task = comm.getTask();
                 latticeCombat();
                 MapLocation target = null;

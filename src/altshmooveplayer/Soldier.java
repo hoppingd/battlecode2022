@@ -1,4 +1,4 @@
-package shmooveplayer;
+package altshmooveplayer;
 
 import battlecode.common.*;
 

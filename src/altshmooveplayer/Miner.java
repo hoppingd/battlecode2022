@@ -1,4 +1,4 @@
-package shmooveplayer;
+package altshmooveplayer;
 
 import battlecode.common.*;
 
@@ -52,7 +52,7 @@ public class Miner extends MyRobot {
         }
         comm.getLoggedEnemies();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
-        //tryDisintegrate();
+        tryDisintegrate();
         tryMine();
         if (rc.isMovementReady()) {
             tryMove();
@@ -155,10 +155,9 @@ public class Miner extends MyRobot {
         }
     }
 
-    // miners ignore soldiers TODO: mine on low rubble locations
     void tryMove() {
         MapLocation loc = flee();
-        //if (rc.getHealth() < DISINTEGRATE_HEALTH && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
+        if (rc.getHealth() < DISINTEGRATE_HEALTH && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
         if (loc == null) loc = getClosestMine();
         if (loc != null){
             bfs.move(loc);

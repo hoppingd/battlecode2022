@@ -1,4 +1,4 @@
-package shmooveplayer;
+package tortoiseplayer;
 
 import battlecode.common.*;
 
@@ -28,8 +28,11 @@ public class Soldier extends MyRobot {
     MapLocation target;
     MapLocation nearestLoggedEnemy;
     boolean healing = false;
+    double turtleRadius;
+    int LATTICE_MOD = 0;
+    MapLocation lastLoggedEnemy;
 
-    public Soldier(RobotController rc){
+    public Soldier(RobotController rc) {
         super(rc);
         birthday = rc.getRoundNum();
         H = rc.getMapHeight();
@@ -38,24 +41,29 @@ public class Soldier extends MyRobot {
         enemyTeam = myTeam.opponent();
         comm.readHQloc();
         nearestCorner = getNearestCorner();
-        mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
+        mapLeadScore = (comm.leadScore / (double) comm.numArchons) * (400.0 / (H * W));
+        turtleRadius = Math.pow(H * W, .6);
+        if ((nearestCorner.x + nearestCorner.y) % 2 == 1) {
+            LATTICE_MOD = 1;
+        }
     }
 
     public void play() {
         target = null;
         nearestLoggedEnemy = comm.getLoggedEnemies();
-        comm.readHQloc();
+        if (nearestLoggedEnemy != null) lastLoggedEnemy = nearestLoggedEnemy;
+        comm.readHQloc(); //TODO: recalculate nearest corner in case archon moves
         task = comm.getTask();
         if (rc.getHealth() == rc.getType().getMaxHealth(rc.getLevel())) {
             healing = false;
         }
-        if (!bfs.doMicro()) { // TODO: flee if health under threshold
+        if (!bfs.doMicro()) {
             tryMove();
         }
         tryAttack();
     }
 
-    void tryAttack(){
+    void tryAttack() {
         if (!rc.isActionReady()) return;
         RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
@@ -91,8 +99,7 @@ public class Soldier extends MyRobot {
                 bestHealth = r.health;
                 bestRubble = rubble;
                 bestLoc = enemyLoc;
-            }
-            else if (r.health == bestHealth && rubble < bestRubble) {
+            } else if (r.health == bestHealth && rubble < bestRubble) {
                 bestRubble = rubble;
                 bestLoc = enemyLoc;
             }
@@ -107,30 +114,23 @@ public class Soldier extends MyRobot {
     }
 
     // TODO: cleanup
-    void tryMove(){
+    void tryMove() {
         if (!rc.isMovementReady()) return;
         switch (task) {
             case 0: {// scout
 
                 break;
             }
-            case 1: {// defensive lattice
-                /* chase code
-                MapLocation nearbyEnemy = enemyInSight();
-                if (nearbyEnemy != null) {
-                    bfs.move(nearbyEnemy);
-                    return;
-
-                 */
-                MapLocation myLoc = rc.getLocation();
-                if (rc.senseNearbyRobots(myLoc, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(myLoc)) { // some spacing condition
-                    return;
-                }
-                target = getFreeSpace();
+            case 1: {// defensive formation. if low health, get in action radius. if high health path away from action radius to make room
+                //TODO: if haven't seen an attack in ~100 turns, crunch / lead farm
+                MapLocation target = null;
+                if (rc.getHealth() < MIN_HEALTH_TO_REINFORCE || !validGuard(rc.getLocation())) target = comm.HQloc;
                 if (target != null) {
                     bfs.move(target);
-                    return;
+                    break;
                 }
+                target = getFreeSpace();
+                greedyMove(target);
                 break;
             }
             case 2: {// emergency
@@ -152,14 +152,12 @@ public class Soldier extends MyRobot {
                 if (!attackerInRange) {
                     if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE && !healing) {
                         target = nearestLoggedEnemy;
-                    }
-                    else {
+                    } else {
                         if (!healing) healing = true;
                         if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
                             //System.err.println("healing...");
                             target = rc.getLocation();
-                        }
-                        else {
+                        } else {
                             target = comm.HQloc;
                             //System.err.println("retreating...");
                         }
@@ -191,8 +189,7 @@ public class Soldier extends MyRobot {
                     } catch (Throwable t) {
                         t.printStackTrace();
                     }
-                }
-                else {
+                } else {
                     comm.incCrunchIdx(); // we are checking the wrong index, so increment
                     if (target == null) {
                         target = explore.getExploreTarget();
@@ -203,6 +200,73 @@ public class Soldier extends MyRobot {
             }
             default:
         }
+    }
+
+    void greedyMove(MapLocation target) {
+        MapLocation myLoc = rc.getLocation();
+        int bestRubble = GameConstants.MAX_RUBBLE;
+        MapLocation bestLoc = null;
+        int d1 = myLoc.distanceSquaredTo(target);
+        try {
+            for (Direction dir : moveDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!validGuard(prospect) || !rc.canMove(dir)) continue;
+                int r = rc.senseRubble(prospect);
+                if (prospect.distanceSquaredTo(target) < d1 && r < bestRubble) {
+                    bestLoc = prospect;
+                    bestRubble = r;
+                }
+            }
+            if (bestLoc != null) rc.move(myLoc.directionTo(bestLoc));
+
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    boolean validGuard(MapLocation loc) {
+        int d1 = loc.distanceSquaredTo(nearestCorner);
+        int d2 = loc.distanceSquaredTo(comm.HQloc);
+        return d1 <= turtleRadius || d2 <= turtleRadius;
+    }
+
+    //TODO: hard code lattice locations
+    MapLocation getFreeSpace() { // if not on outer radius, form a lattice so that the outer guards can path back and heal/disintegrate.
+        MapLocation myLoc = rc.getLocation();
+        MapLocation target = null;
+        if (validGuard(myLoc)) {
+            // outer ring of base
+            if (!validGuard(myLoc.add(myLoc.directionTo(comm.HQloc).opposite()))) {
+                target = myLoc;
+            }
+            // inner ring lattice
+            else if ((myLoc.x + myLoc.y) % 2 == LATTICE_MOD) {
+                target = myLoc;
+            }
+        }
+        try {
+            MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, RobotType.SOLDIER.visionRadiusSquared);
+            for (MapLocation cell : cells) { // interlinked
+                if (validGuard(cell) && !rc.canSenseRobotAtLocation(cell)) {
+                    // closest to last reinforceloc
+                    if (target == null || cell.distanceSquaredTo(lastLoggedEnemy) < target.distanceSquaredTo(lastLoggedEnemy)) {
+                        // outer ring of base
+                        if (!validGuard(cell.add(cell.directionTo(comm.HQloc).opposite()))) {
+                            target = cell;
+                        }
+                        // inner ring lattice
+                        else if ((cell.x + cell.y) % 2 == LATTICE_MOD) {
+                            target = cell;
+                        }
+                    }
+                }
+            }
+            // no spacing in vision
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        if (target == null) return comm.HQloc;
+        return target;
     }
 
     void senseEnemyArchons() { // check for enemy archon and write
@@ -220,62 +284,6 @@ public class Soldier extends MyRobot {
 
             }
         }
-    }
-
-    /*boolean goToEnemyHQ(){
-        MapLocation ans = null;
-        int minDist = -1;
-        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
-            if (r.getMapLocation() == null) continue;
-            if (r.team != rc.getTeam().opponent().ordinal()) continue;
-            if (rc.getRoundNum() - r.turnExplored <= EC_DELAY) continue;
-            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
-            if (minDist < 0 || minDist > dist){
-                minDist = dist;
-                ans = r.getMapLocation();
-            }
-        }
-        return moveSafely(ans, Util.SAFETY_DISTANCE_ENEMY_EC);
-    }*/
-
-    /*void updateECs(){
-        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
-            if (r.getMapLocation() == null) continue;
-            if (r.team != rc.getTeam().opponent().ordinal()) continue;
-            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
-            if (dist > Util.MUCKRAKER_DIST_EC) continue;
-            r.turnExplored = rc.getRoundNum();
-        }
-    }*/
-
-    boolean validLattice(MapLocation loc) {
-        int d1 = loc.distanceSquaredTo(nearestCorner);
-        return d1 > Math.sqrt(Math.sqrt(H*W)) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner);
-    }
-
-    MapLocation getFreeSpace() { // soldiers will find closest free space
-        MapLocation myLoc = rc.getLocation();
-        MapLocation space = null;
-        try {
-            MapLocation[] cells = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
-            for (MapLocation cell : cells) { // interlinked
-                if (!rc.canSenseLocation(cell)) continue; // needed?
-                if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(cell)) { // some spacing condition
-                    if (space == null) {
-                        space = cell;
-                    }
-                    // closer than target and further from corner than me
-                    else if (cell.distanceSquaredTo(myLoc) < space.distanceSquaredTo(myLoc))
-                    { // should try to build lattice away from wall/toward enemy
-                        space = cell;
-                    }
-                }
-            }
-            // no spacing in vision
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return space;
     }
 
     MapLocation getNearestCorner() {

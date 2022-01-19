@@ -1,4 +1,4 @@
-package shmooveplayer;
+package tortoiseplayer;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
@@ -99,6 +99,12 @@ public class Archon extends MyRobot {
         else if (currRound == birthday + 2) { // HQ is decided on 3rd round
             if (!comm.decideHQ()) comm.readHQloc();
             if (rc.getLocation().equals(comm.HQloc)) arrived = true;
+        }
+        // defense time
+        if (currRound >= comm.P3_START) {
+            if (task != comm.CRUNCH && task != comm.EMERGENCY) {
+                comm.setTask(comm.LATTICE);
+            }
         }
         // CRUNCH TIME
         if (currRound >= CRUNCH_ROUND && rc.getArchonCount() < comm.numArchons) { // if we lost an archon, we need to try to get theirs
@@ -453,7 +459,7 @@ public class Archon extends MyRobot {
         boolean attackerInRange = false;
         // lowest hp under max health, prioritizing attackers
         for (RobotInfo r : allies){
-            if (!rc.canRepair(r.getLocation())) continue;
+            if (!rc.canRepair(r.getLocation()) || r.getType() == RobotType.MINER) continue; // don't heal miners, since they will sack themselves
             int hp = r.getHealth();
             if (!attackerInRange && r.getType().canAttack() && hp < r.getType().getMaxHealth(r.getLevel())) {
                 attackerInRange = true;

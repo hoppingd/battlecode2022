@@ -1,4 +1,4 @@
-package shmooveplayer;
+package altshmooveplayer;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
@@ -453,7 +453,7 @@ public class Archon extends MyRobot {
         boolean attackerInRange = false;
         // lowest hp under max health, prioritizing attackers
         for (RobotInfo r : allies){
-            if (!rc.canRepair(r.getLocation())) continue;
+            if (!rc.canRepair(r.getLocation()) || r.getType() == RobotType.MINER) continue; // don't heal miners, since they will sack themselves
             int hp = r.getHealth();
             if (!attackerInRange && r.getType().canAttack() && hp < r.getType().getMaxHealth(r.getLevel())) {
                 attackerInRange = true;
