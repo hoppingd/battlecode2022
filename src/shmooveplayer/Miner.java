@@ -1,4 +1,4 @@
-package queueplayer;
+package shmooveplayer;
 
 import battlecode.common.*;
 
@@ -39,7 +39,7 @@ public class Miner extends MyRobot {
     }
 
     public void play(){
-        if (comm.HQloc == null) comm.readHQloc();
+        comm.readHQloc();
         // alternate explore targets
         if (rc.getRoundNum() == birthday) {
             minerCode = comm.getMinerCode();

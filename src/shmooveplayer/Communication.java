@@ -29,7 +29,7 @@
 // [28] Crunch index = idx
 // [29-63] Enemy logs and ids = yyyy yyxx xxxx / id (6 bits)
 
-package queueplayer;
+package shmooveplayer;
 
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
@@ -374,6 +374,18 @@ public class Communication {
             t.printStackTrace();
         }
         return true;
+    }
+
+    // updates the HQ location in case it moves
+    void updateHQ() {
+        int code = (1 << 12) + (rc.getLocation().y << 6) + rc.getLocation().x;
+        try {
+            rc.writeSharedArray(0, code);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        HQloc = rc.getLocation();
+        HQopposite = getHQOpposite();
     }
 
     // lower score = better hq

@@ -1,4 +1,4 @@
-package queueplayer;
+package shmooveplayer;
 
 import battlecode.common.*;
 
@@ -44,6 +44,7 @@ public class Soldier extends MyRobot {
     public void play() {
         target = null;
         nearestLoggedEnemy = comm.getLoggedEnemies();
+        comm.readHQloc();
         task = comm.getTask();
         if (rc.getHealth() == rc.getType().getMaxHealth(rc.getLevel())) {
             healing = false;
