@@ -173,6 +173,7 @@ public class Miner extends MyRobot {
         bfs.move(loc);
     }
 
+    // TODO: miners should fan out more, especially if early rounds of turtle
     MapLocation getClosestMine(){
         MapLocation myLoc = rc.getLocation();
         MapLocation bestMine = null;
@@ -190,6 +191,24 @@ public class Miner extends MyRobot {
                     bestMine = mine;
                     bestDist = dist;
                 }
+            }
+            // get lowest rubble adjacent location, break ties with proximity TODO: consider if location is occupied
+            if (bestMine != null) {
+                MapLocation bestLoc = bestMine;
+                int bestRubble = rc.senseRubble(bestMine);
+                for (Direction dir : dirs) {
+                    MapLocation prospect = bestMine.add(dir);
+                    if (!rc.canSenseLocation(prospect)) continue;
+                    int rubble = rc.senseRubble(prospect);
+                    if (rubble < bestRubble) {
+                        bestRubble = rubble;
+                        bestLoc = prospect;
+                    }
+                    else if (rubble == bestRubble && myLoc.distanceSquaredTo(prospect) < myLoc.distanceSquaredTo(bestLoc)) {
+                        bestLoc = prospect;
+                    }
+                }
+                bestMine = bestLoc;
             }
         } catch (Throwable t) {
             t.printStackTrace();
