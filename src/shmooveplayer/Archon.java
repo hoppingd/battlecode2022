@@ -115,7 +115,7 @@ public class Archon extends MyRobot {
                             if (rc.isTransformReady()) { // TODO: use anomaly schedule so as to not incure high transform cooldown? set hard cap on time transformed?
                                 rc.transform();
                                 comm.incSpawnCounter(); // avoid getting stuck
-                                System.err.println("transforming in favor of: " + getTransformLocation());
+                                //System.err.println("transforming in favor of: " + getTransformLocation());
                             }
                         } catch (Throwable t) {
                             t.printStackTrace();
@@ -160,7 +160,7 @@ public class Archon extends MyRobot {
             if (rc.getLocation().equals(target)) {
                 try {
                     if (rc.isTransformReady()) {
-                        System.err.println("settling at: " + target);
+                        //System.err.println("settling at: " + target);
                         rc.transform();
                         arrived = true;
                     }

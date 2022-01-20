@@ -49,7 +49,7 @@ public class Soldier extends MyRobot {
         if (rc.getHealth() == rc.getType().getMaxHealth(rc.getLevel())) {
             healing = false;
         }
-        if (!bfs.doMicro()) { // TODO: flee if health under threshold
+        if (!bfs.doMicro()) {
             tryMove();
         }
         tryAttack();

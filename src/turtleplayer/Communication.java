@@ -1,19 +1,19 @@
 // [0] Pathing to HQ with flag: HQ_DECIDED yyyy yyxx xxxx
-// [1] Task: 0 = scout, 1 = lattice, 2 = emergency 3 = explore, 4 = crunch
-// [2] Symmetry: MIR HOR VERT INITIAL_SYMMETRY
+// [1] Task and build codes: p4 (3 bits) p3 (3 bits) p2 (3 bits) p1 (3 bits) task (3 bits)
+// [2] Symmetry: MIR HOR VERT INITIAL_SYMMETRY (not currently used
 // [3] Archon 1: ARCHON_SET yyyy yyxx xxxx
 // [4] Archon 2: ARCHON_SET yyyy yyxx xxxx
 // [5] Archon 3: ARCHON_SET yyyy yyxx xxxx
 // [6] Archon 4: ARCHON_SET yyyy yyxx xxxx
-// [7] EnemyArchon 1: ARCHON_SET ID(6bits) yyyy yyxx xxxx
-// [8] EnemyArchon 2: ARCHON_SET ID(6bits) yyyy yyxx xxxx
-// [9] EnemyArchon 3: ARCHON_SET ID(6bits) yyyy yyxx xxxx
-// [10] EnemyArchon 4: ARCHON_SET ID(6bits) yyyy yyxx xxxx
-// [11] Lab is built : IS_BUILT
-// [12] Build code P1: CODE
-// [13] Build code P2: CODE
-// [14] Build code P3: CODE
-// [15] Build code P4: CODE
+// [7] EnemyArchon 1: ARCHON_SET yyyy yyxx xxxx
+// [8] EnemyArchon 2: ARCHON_SET yyyy yyxx xxxx
+// [9] EnemyArchon 3: ARCHON_SET yyyy yyxx xxxx
+// [10] EnemyArchon 4: ARCHON_SET yyyy yyxx xxxx
+// [11] MinerCode: 0|1
+// [12] FREE
+// [13] FREE
+// [14] FREE
+// [15] FREE
 // [16] Emergency location: yyyy yyxx xxxx
 // [17] EnemyArchonID: ID
 // [18] EnemyArchonID: ID
@@ -27,12 +27,10 @@
 // [26] Map Lead Score: score
 // [27] Spawn counter = count
 // [28] Crunch index = idx
-// [29] isBuilderBuilt = 0|1
-// [30] Call for Reinforcements = numEnemies (4 bits) location of enemy (12 bits)
+// [29-63] Enemy logs and ids = yyyy yyxx xxxx / id (6 bits)
 
 package turtleplayer;
 
-import battlecode.common.GameConstants;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
@@ -41,9 +39,9 @@ public class Communication {
 
     final static int ALLY_ARCHON_ARRAY_START = 3;
     final static int ENEMY_ARCHON_ARRAY_START = 7;
-    final static int BUILD_CODE_ARRAY_START = 12;
     final static int ENEMY_ARCHON_TO_ID = 10; // id array start - enemy archon array start
     final static int HQ_SCORE_ARRAY_START = 22;
+    final static int ENEMY_LOGS_ARRAY_START = 29;
 
     // TASK CODES
     final static int SCOUT = 0;
@@ -59,30 +57,43 @@ public class Communication {
     //P4: start stockpiling lead for watchtowers and laboratory
     static final int P2_START = 80;
     static final int P3_START = 200; //survived rush, hopefully
-    static final int P4_START = 1200;
+    static final int P4_START = 1000;
     static final int P4_SAVINGS = 325;
 
     static final int HIGH_LEAD_THRESHOLD = 2000;
     static final int LOW_LEAD_THRESHOLD = 25;
+    static final int MAX_LOGGED_ENEMIES = 12;
 
     RobotController rc;
     MapLocation HQloc = null;
     MapLocation HQopposite = null;
+
     int numArchons; // inital archons
     int archonsAlive;
     int H, W;
+
+    MapLocation[] loggedEnemies;
+
     MapLocation[] allyArchons;
     MapLocation[] enemyArchons;
+
     int spawnID = 0;
     double leadScore = 0;
+    int localIndex = 0;
 
     Communication(RobotController rc) {
         this.rc = rc;
         archonsAlive = numArchons = rc.getArchonCount();
         H = rc.getMapHeight();
         W = rc.getMapWidth();
+        loggedEnemies = new MapLocation[MAX_LOGGED_ENEMIES];
         allyArchons = new MapLocation[numArchons];
         enemyArchons = new MapLocation[numArchons];
+        try {
+            localIndex = rc.readSharedArray(ENEMY_LOGS_ARRAY_START + MAX_LOGGED_ENEMIES);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
     }
 
     void init() {
@@ -101,8 +112,7 @@ public class Communication {
 
     void incSpawnCounter() {
         try {
-            int spawnCounter = 0;
-            spawnCounter = rc.readSharedArray(27);
+            int spawnCounter = rc.readSharedArray(27);
             rc.writeSharedArray(27, spawnCounter + 1);
         } catch (Throwable t) {
             t.printStackTrace();
@@ -142,23 +152,64 @@ public class Communication {
         }
     }
 
-    boolean isBuilderBuilt () {
-        int bit = 0;
+    int getMinerCode() {
+        int minerCode = 0;
         try {
-            bit = rc.readSharedArray(29);
+            minerCode = rc.readSharedArray(11);
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return bit == 1;
+        return minerCode;
     }
 
-    void setBuilderBuilt () {
+    void setMinerCode(int minerCode) {
         try {
-            rc.writeSharedArray(29, 1);
+            rc.writeSharedArray(11, minerCode);
         } catch (Throwable t) {
             t.printStackTrace();
         }
     }
+
+    //returns nearest newly logged enemy
+    MapLocation getLoggedEnemies() {
+        MapLocation bestLoc = null;
+        MapLocation myLoc = rc.getLocation();
+        try {
+            int sharedIndex = rc.readSharedArray(ENEMY_LOGS_ARRAY_START + MAX_LOGGED_ENEMIES);
+            while (localIndex != sharedIndex) {
+                int code = rc.readSharedArray(ENEMY_LOGS_ARRAY_START + localIndex);
+                int x = code & 0x3F;
+                int y = (code >> 6) & 0x3F;
+                loggedEnemies[localIndex] = new MapLocation(x, y);
+                if (bestLoc == null) bestLoc = loggedEnemies[localIndex];
+                else if (myLoc.distanceSquaredTo(loggedEnemies[localIndex]) < myLoc.distanceSquaredTo(bestLoc)) {
+                    bestLoc = loggedEnemies[localIndex];
+                }
+                localIndex = (localIndex + 1) % MAX_LOGGED_ENEMIES;
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bestLoc;
+    }
+
+    void writeEnemyToLog(MapLocation loc) {
+        try {
+            // avoid repeats
+            /*for (int i = 0; i < MAX_LOGGED_ENEMIES; i++) {
+                if (loggedEnemies[i] == null) continue;
+                if (loggedEnemies[i].equals(loc)) return;
+            }*/
+            int sharedIndex = rc.readSharedArray(ENEMY_LOGS_ARRAY_START + MAX_LOGGED_ENEMIES);
+            int code = (loc.y << 6) + loc.x;
+            rc.writeSharedArray(ENEMY_LOGS_ARRAY_START + sharedIndex, code);
+            sharedIndex = (sharedIndex + 1) % MAX_LOGGED_ENEMIES;
+            rc.writeSharedArray(ENEMY_LOGS_ARRAY_START + MAX_LOGGED_ENEMIES, sharedIndex);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
     // writes to first available archon location. also writes lead score and sets spawnid.
     void writeAllyArchonLocation(int leadScore) {
         try {
@@ -180,7 +231,6 @@ public class Communication {
             t.printStackTrace();
         }
         initialSymmetry();
-        return;
     }
 
     // reads ally archon locations. returns true if all have been read.
@@ -209,46 +259,6 @@ public class Communication {
         return true;
     }
 
-    // if enemies seen are greater than last reinforcements call, write over TODO: should not call for reinforcements in significantly lost combats
-    void callReinforcements(int enemies1, MapLocation loc) {
-        try {
-            int code = rc.readSharedArray(30);
-            int enemies2 = (code >> 12) & 0xF;
-            if (enemies1 > enemies2) {
-                int newCode = (enemies1 << 12) + (loc.y << 6) + loc.x;
-                //System.err.println("reinforce against " + enemies1 + " enemies");
-                rc.writeSharedArray(30, newCode);
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-
-    MapLocation readReinforcements() {
-        try {
-            int code = rc.readSharedArray(30);
-            int enemies = (code >> 12) & 0xF;
-            if (enemies == 0) {
-               return null;
-            }
-            int x = code & 0x3F;
-            int y = (code >> 6) & 0x3F;
-            return new MapLocation(x,y);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return null;
-    }
-
-    // !!! only call if in range of reinforcements call and battle appears to be winning
-    void clearReinforcements() {
-        try {
-            rc.writeSharedArray(30, 0);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-
     //TODO: clean up
     //write enemy archon location. should check for ids and update if changed location. can also update if one is destroyed;
     void writeEnemyArchonLocation(RobotInfo r) {
@@ -270,7 +280,6 @@ public class Communication {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return;
     }
 
     void wipeEnemyArchonLocation(int i) {
@@ -301,7 +310,6 @@ public class Communication {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return;
     }
 
     void initialSymmetry() {
@@ -329,7 +337,6 @@ public class Communication {
     // updates comm.HQloc. returns false if HQ has not been decided
     boolean readHQloc() {
         try {
-            if (HQloc != null) return true;
             int HQ = rc.readSharedArray(0); //HQ_DECIDED yyyy yyxx xxxx
             boolean HQ_DECIDED = (rc.readSharedArray(0) >> 12) == 1; // HQ_DECIDED yyyy yyxx xxxx
             if (!HQ_DECIDED) return false;
@@ -366,6 +373,18 @@ public class Communication {
             t.printStackTrace();
         }
         return true;
+    }
+
+    // updates the HQ location in case it moves
+    void updateHQ() {
+        int code = (1 << 12) + (rc.getLocation().y << 6) + rc.getLocation().x;
+        try {
+            rc.writeSharedArray(0, code);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        HQloc = rc.getLocation();
+        HQopposite = getHQOpposite();
     }
 
     // lower score = better hq
@@ -407,12 +426,14 @@ public class Communication {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        return task;
+        return task & 0x7;
     }
 
     void setTask(int n) {
         try {
-            rc.writeSharedArray(1, n);
+            int code = rc.readSharedArray(1);
+            code &= 0xFFF8;
+            rc.writeSharedArray(1, code | n);
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -421,7 +442,8 @@ public class Communication {
     int readBuildCode(int phase) {
         int build = 0;
         try {
-            build = rc.readSharedArray(BUILD_CODE_ARRAY_START - 1 + phase);
+            int code = rc.readSharedArray(1);
+            build = (code >> 3*phase) & 0x7;
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -430,26 +452,11 @@ public class Communication {
 
     void writeBuildCode(int phase, int buildCode) {
         try {
-            rc.writeSharedArray(BUILD_CODE_ARRAY_START - 1 + phase, buildCode);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return;
-    }
-
-    int getMinerFlag() {
-        int bit = 0;
-        try {
-            bit = rc.readSharedArray(31);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return bit;
-    }
-
-    void setMinerFlag (int flag) {
-        try {
-            rc.writeSharedArray(31, flag);
+            int code = rc.readSharedArray(1);
+            int mask = ~(0x7 << (3*phase));
+            code &= mask;
+            code |= (buildCode << (3*phase));
+            rc.writeSharedArray(1, code);
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -463,14 +470,6 @@ public class Communication {
             t.printStackTrace();
         }
         return isBuilt;
-    }
-
-    void setLabBuilt() {
-        try {
-            rc.writeSharedArray(11, 1);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
     }
 
     MapLocation getHQOpposite() {
@@ -499,6 +498,16 @@ public class Communication {
             t.printStackTrace();
         }
         return loc;
+    }
+
+    class LogEntry {
+        MapLocation location;
+        int id;
+
+        LogEntry(MapLocation location, int id) {
+            this.location = location;
+            this.id = id;
+        }
     }
 }
 

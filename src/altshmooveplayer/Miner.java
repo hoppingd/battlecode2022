@@ -109,7 +109,7 @@ public class Miner extends MyRobot {
                 numEnemies++;
             }
         }
-        if (numEnemies > numAllies) {
+        if (numEnemies*3 > numAllies) { // modifier so miners stay safer
             explore.reset();
             return comm.HQloc;
         }
@@ -179,7 +179,7 @@ public class Miner extends MyRobot {
         try {
             MapLocation[] leadMines = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared, MIN_LEAD_TO_MINE);
             for (MapLocation mine : leadMines) { // interlinked
-                if ((comm.HQloc != null && mine.isAdjacentTo(comm.HQloc)) || rc.senseNearbyRobots(mine, 2, myTeam).length > 1) continue; // only go to mines with few miners nearby
+                if (rc.senseNearbyRobots(mine, 2, myTeam).length > 1) continue; // only go to mines with few miners nearby
                 int dist = myLoc.distanceSquaredTo(mine);
                 if (bestMine == null) {
                     bestMine = mine;

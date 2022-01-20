@@ -6,12 +6,16 @@ import java.util.HashSet;
 
 public class Pathfinding {
 
+    static final int MIN_HEALTH_TO_REINFORCE = 11; // soldiers and sages
+
     RobotController rc;
     MapLocation target = null;
     double avgRubble = 100;
 
     BugNav bugNav = new BugNav();
     Exploration explore;
+
+    Team myTeam, enemyTeam;
 
     static final Direction[] directions = {
             Direction.NORTH,
@@ -41,17 +45,22 @@ public class Pathfinding {
         return true;
     }
 
+    boolean doMicro() {
+        return bugNav.doMicro();
+    }
 
     Pathfinding(RobotController rc, Exploration explore){
         this.rc = rc;
         this.explore = explore;
+        myTeam = rc.getTeam();
+        enemyTeam = myTeam.opponent();
     }
 
     double getEstimation (MapLocation loc){
         try {
             if (loc.distanceSquaredTo(target) == 0) return 0;
             int d = Util.distance(target, loc);
-            double r = rc.senseRubble(loc);
+            double r = 10 + rc.senseRubble(loc);
             return r + (d - 1)*avgRubble;
         } catch (Throwable e){
             e.printStackTrace();
@@ -166,7 +175,7 @@ public class Pathfinding {
                     }
                     MapLocation newLoc = myLoc.add(dir);
                     if (!rc.onTheMap(newLoc)) rotateRight = !rotateRight;
-                        //If I could not go in that direction and it was not outside of the map, then this is the latest obstacle found
+                        //If I could not go in that direction, and it was not outside the map, then this is the latest obstacle found
                     else lastObstacleFound = myLoc.add(dir);
                     if (rotateRight) dir = dir.rotateRight();
                     else dir = dir.rotateLeft();
@@ -179,7 +188,7 @@ public class Pathfinding {
             return true;
         }
 
-        //clear some of the previous data
+        //clear some of previous data
         void resetPathfinding(){
             lastObstacleFound = null;
             minDistToEnemy = INF;
@@ -194,7 +203,139 @@ public class Pathfinding {
             int bit = rotateRight ? 1 : 0;
             return (((((x << 6) | y) << 4) | obstacleDir.ordinal()) << 1) | bit;
         }
+
+        boolean doMicro() {
+            MicroInfo[] microInfo = new MicroInfo[9];
+            for (int i = 0; i < 9; i++) microInfo[i] = new MicroInfo(rc.getLocation().add(directions[i]));
+
+            RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
+
+            for (RobotInfo enemy : enemies) {
+                for (int i = 0; i < 9; i++) {
+                    microInfo[i].update(enemy);
+                }
+            }
+
+            int bestIndex = -1;
+            for (int i = 8; i >= 0; i--) {
+                if (!rc.canMove(directions[i])) continue;
+                if (bestIndex < 0 || !microInfo[bestIndex].isBetter(microInfo[i])) bestIndex = i;
+            }
+
+            if (bestIndex != -1) {
+                if (enemies.length > 0) {
+                    try {
+                        //try attacking if fleeing all combat
+                        if(rc.isActionReady() && microInfo[bestIndex].numEnemies == 0) {
+                            RobotInfo[] enemiesToAttack = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
+                            MapLocation bestLoc = null;
+                            boolean attackerInRange = false;
+                            // don't attack miners if soldiers in view
+                            for (RobotInfo r : enemies) {
+                                if (r.type.canAttack()) {
+                                    attackerInRange = true;
+                                }
+                            }
+                            int bestHealth = 10000;
+                            int bestRubble = GameConstants.MAX_RUBBLE;
+                            for (RobotInfo r : enemiesToAttack) {
+                                MapLocation enemyLoc = r.getLocation();
+                                boolean isAttacker = r.type.canAttack();
+                                // if there are attackers, ignore all non-attackers and reset variables
+                                if (!isAttacker && attackerInRange) continue;
+                                int rubble = GameConstants.MAX_RUBBLE;
+                                try {
+                                    rubble = rc.senseRubble(r.location);
+                                } catch (Throwable t) {
+                                    t.printStackTrace();
+                                }
+                                if (isAttacker && !attackerInRange) {
+                                    bestHealth = 10000;
+                                    bestRubble = rubble;
+                                    attackerInRange = true;
+                                }
+                                // shoot lowest health with rubble as tiebreaker
+                                if (r.health < bestHealth) {
+                                    bestHealth = r.health;
+                                    bestRubble = rubble;
+                                    bestLoc = enemyLoc;
+                                }
+                                else if (r.health == bestHealth && rubble < bestRubble) {
+                                    bestRubble = rubble;
+                                    bestLoc = enemyLoc;
+                                }
+                            }
+                            try {
+                                if (bestLoc != null) {
+                                    rc.attack(bestLoc);
+                                }
+                            } catch (Throwable t) {
+                                t.printStackTrace();
+                            }
+                        }
+                        //System.err.println("microing to " + rc.getLocation().add(directions[bestIndex]));
+                        rc.move(directions[bestIndex]);
+                    } catch (Throwable e){
+                        e.printStackTrace();
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        class MicroInfo{
+            int numEnemies;
+            int minDistToEnemy = INF;
+            int rubble = GameConstants.MAX_RUBBLE + 1;
+            MapLocation loc;
+
+            public MicroInfo(MapLocation loc) {
+                this.loc = loc;
+                numEnemies = 0;
+                try {
+                    if (rc.onTheMap(loc)) rubble = rc.senseRubble(loc);
+                } catch (Throwable e) {
+                    e.printStackTrace();
+                }
+            }
+
+            void update(RobotInfo robot) {
+                int d = robot.location.distanceSquaredTo(loc);
+                if (d <= robot.type.actionRadiusSquared && robot.getType().canAttack()) {
+                    numEnemies++;
+                }
+                if (d < minDistToEnemy) minDistToEnemy = d;
+            }
+
+            boolean canAttack() {
+                return rc.getType().actionRadiusSquared >= minDistToEnemy;
+            }
+
+            //TODO: improve
+            boolean isBetter (MicroInfo m) {
+                if (rubble < m.rubble) {
+                    return true;
+                }
+                if (rubble > m.rubble) return false;
+                if (numEnemies < m.numEnemies) return true;
+                if (numEnemies > m.numEnemies) return false;
+                if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE) {
+                    if (canAttack()) {
+                        if (!m.canAttack()) return true;
+                        return minDistToEnemy >= m.minDistToEnemy;
+                    }
+                    if (m.canAttack()) return false;
+                    return minDistToEnemy <= m.minDistToEnemy;
+                }
+                // if health is low, will try to get out of combat
+                if (canAttack()) {
+                    if (!m.canAttack()) return false;
+                    return minDistToEnemy >= m.minDistToEnemy;
+                }
+                if (m.canAttack()) return true;
+                return minDistToEnemy >= m.minDistToEnemy;
+            }
+        }
     }
-
-
 }
