@@ -1,4 +1,4 @@
-package turtleplayer;
+package microtest1;
 
 import battlecode.common.*;
 
@@ -22,7 +22,7 @@ public class Soldier extends MyRobot {
     int H, W;
     Team myTeam, enemyTeam;
 
-    MapLocation nearestCorner;
+    //MapLocation nearestCorner;
     int task = 0;
     double mapLeadScore;
     MapLocation target;
@@ -37,7 +37,7 @@ public class Soldier extends MyRobot {
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
         comm.readHQloc();
-        nearestCorner = getNearestCorner();
+        //nearestCorner = getNearestCorner();
         mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
     }
 
@@ -52,7 +52,6 @@ public class Soldier extends MyRobot {
         if (!bfs.doMicro()) {
             tryMove();
         }
-        tryDisintegrate();
         tryAttack();
     }
 
@@ -116,17 +115,7 @@ public class Soldier extends MyRobot {
                 break;
             }
             case 1: {// defensive lattice
-                /* chase code
-                MapLocation nearbyEnemy = enemyInSight();
-                if (nearbyEnemy != null) {
-                    bfs.move(nearbyEnemy);
-                    return;
-
-                 */
                 MapLocation myLoc = rc.getLocation();
-                if (rc.senseNearbyRobots(myLoc, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(myLoc)) { // some spacing condition
-                    return;
-                }
                 target = getFreeSpace();
                 if (target != null) {
                     bfs.move(target);
@@ -142,36 +131,13 @@ public class Soldier extends MyRobot {
                 break;
             }
             case 3: { // explore
-                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
-                boolean attackerInRange = false;
-                for (RobotInfo r : nearbyEnemies) {
-                    if (r.type.canAttack()) {
-                        attackerInRange = true;
-                        break;
-                    }
-                }
-                if (!attackerInRange) {
-                    if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE && !healing) {
-                        target = nearestLoggedEnemy;
-                    }
-                    else {
-                        if (!healing) healing = true;
-                        if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
-                            //System.err.println("healing...");
-                            target = rc.getLocation();
-                        }
-                        else {
-                            target = comm.HQloc;
-                            //System.err.println("retreating...");
-                        }
-                    }
-                }
+                if (rc.getRoundNum() < 500) return;
+                target = nearestLoggedEnemy;
+
                 if (target == null) {
-                    //target = explore.getExplore3Target();
-                    target = explore.getExploreTarget();
+                    target = new MapLocation((W - 1)/2, (H - 1)/2);
                 }
                 bfs.move(target);
-                senseEnemyArchons();
                 break;
             }
             case 4: { // crunch TODO: improve. get lowest index or nearest non null archon location. bug when archon is destroyed but not crunching.
@@ -207,19 +173,6 @@ public class Soldier extends MyRobot {
         }
     }
 
-    void tryDisintegrate() {
-        if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE || rc.getRoundNum() >= Communication.P3_START) return;
-        if (!rc.isActionReady()) return;
-        MapLocation myLoc = rc.getLocation();
-        try {
-            if ((myLoc.distanceSquaredTo(comm.HQloc) <= RobotType.ARCHON.visionRadiusSquared) && rc.senseLead(myLoc) == 0) {
-                rc.disintegrate();
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-
     void senseEnemyArchons() { // check for enemy archon and write
         RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         for (RobotInfo r : nearbyEnemies) {
@@ -237,37 +190,6 @@ public class Soldier extends MyRobot {
         }
     }
 
-    /*boolean goToEnemyHQ(){
-        MapLocation ans = null;
-        int minDist = -1;
-        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
-            if (r.getMapLocation() == null) continue;
-            if (r.team != rc.getTeam().opponent().ordinal()) continue;
-            if (rc.getRoundNum() - r.turnExplored <= EC_DELAY) continue;
-            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
-            if (minDist < 0 || minDist > dist){
-                minDist = dist;
-                ans = r.getMapLocation();
-            }
-        }
-        return moveSafely(ans, Util.SAFETY_DISTANCE_ENEMY_EC);
-    }*/
-
-    /*void updateECs(){
-        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
-            if (r.getMapLocation() == null) continue;
-            if (r.team != rc.getTeam().opponent().ordinal()) continue;
-            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
-            if (dist > Util.MUCKRAKER_DIST_EC) continue;
-            r.turnExplored = rc.getRoundNum();
-        }
-    }*/
-
-    boolean validLattice(MapLocation loc) {
-        int d1 = loc.distanceSquaredTo(nearestCorner);
-        return d1 > Math.sqrt(Math.sqrt(H*W)) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner);
-    }
-
     MapLocation getFreeSpace() { // soldiers will find closest free space
         MapLocation myLoc = rc.getLocation();
         MapLocation space = null;
@@ -275,7 +197,7 @@ public class Soldier extends MyRobot {
             MapLocation[] cells = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells) { // interlinked
                 if (!rc.canSenseLocation(cell)) continue; // needed?
-                if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(cell)) { // some spacing condition
+                if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length <= LATTICE_CONGESTION) { // some spacing condition
                     if (space == null) {
                         space = cell;
                     }

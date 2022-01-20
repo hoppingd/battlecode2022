@@ -112,7 +112,7 @@ public class Archon extends MyRobot {
                 if (minersBuilt >= P1_MINERS - comm.numArchons - P1_MINERS_MODIFIER || currRound > Communication.P2_START) { // condition for archons to start moving
                     if (!rc.getLocation().equals(getTransformLocation())) {
                         try {
-                            if (rc.isTransformReady()) { // TODO: use anomaly schedule so as to not incure high transform cooldown? set hard cap on time transformed?
+                            if (rc.isTransformReady()) {
                                 rc.transform();
                                 comm.incSpawnCounter(); // avoid getting stuck
                                 //System.err.println("transforming in favor of: " + getTransformLocation());

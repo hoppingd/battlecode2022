@@ -1,4 +1,4 @@
-package microplayer;
+package microtest1;
 
 import battlecode.common.*;
 
@@ -17,7 +17,6 @@ public class Miner extends MyRobot {
 
     static final int MIN_LEAD_TO_MINE = 6;
     static final int DISINTEGRATE_HEALTH = 7;
-    static final int MAX_EXPLORE_TURNS = 100;
 
     Direction[] dirs = Direction.allDirections();
     int H, W;
@@ -27,7 +26,6 @@ public class Miner extends MyRobot {
     RobotInfo[] nearbyEnemies;
     double mapLeadScore;
     int minerCode = 0;
-    int turnsWithoutMining = 0;
 
     public Miner(RobotController rc){
         super(rc);
@@ -41,7 +39,6 @@ public class Miner extends MyRobot {
     }
 
     public void play(){
-        turnsWithoutMining++;
         comm.readHQloc();
         // alternate explore targets
         if (rc.getRoundNum() == birthday) {
@@ -86,7 +83,7 @@ public class Miner extends MyRobot {
     }
 
     void tryDisintegrate() {
-        if (rc.getHealth() >= DISINTEGRATE_HEALTH && turnsWithoutMining < MAX_EXPLORE_TURNS) return;
+        if (rc.getHealth() >= DISINTEGRATE_HEALTH) return;
         if (!rc.isActionReady()) return;
         MapLocation myLoc = rc.getLocation();
         try {
@@ -110,19 +107,6 @@ public class Miner extends MyRobot {
             if (r.getType().canAttack()) {
                 comm.writeEnemyToLog(r.location);
                 numEnemies++;
-            }
-            else if (r.getType() == RobotType.ARCHON) {
-                comm.writeEnemyArchonLocation(r);
-                try {
-                    if (mapLeadScore < Communication.HIGH_LEAD_THRESHOLD && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense should crunch
-                        comm.setTask(4); // CRUNCH!
-                    }
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                }
-            }
-            else if (r.getType() == RobotType.BUILDER) {
-                comm.setTask(4);
             }
         }
         if (numEnemies*3 > numAllies) { // modifier so miners stay safer
@@ -151,7 +135,6 @@ public class Miner extends MyRobot {
                     if (rc.isActionReady()) {
                         rc.mineLead(prospect);
                         lead--;
-                        turnsWithoutMining = 0;
                     }
                     else {
                         return;
@@ -161,7 +144,6 @@ public class Miner extends MyRobot {
                     if (rc.isActionReady()) {
                         rc.mineGold(prospect);
                         gold--;
-                        turnsWithoutMining = 0;
                     }
                     else {
                         return;
@@ -175,7 +157,7 @@ public class Miner extends MyRobot {
 
     void tryMove() {
         MapLocation loc = flee();
-        if ((rc.getHealth() < DISINTEGRATE_HEALTH || turnsWithoutMining >= MAX_EXPLORE_TURNS) && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
+        if (rc.getHealth() < DISINTEGRATE_HEALTH && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
         if (loc == null) loc = getClosestMine();
         if (loc != null){
             bfs.move(loc);
@@ -190,7 +172,6 @@ public class Miner extends MyRobot {
         bfs.move(loc);
     }
 
-    // TODO: be greedy for gold
     MapLocation getClosestMine(){
         MapLocation myLoc = rc.getLocation();
         MapLocation bestMine = null;

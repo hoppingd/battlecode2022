@@ -3,7 +3,7 @@
 //- Some "distance1 + weight < distance2" conditions are always true because their distance1 is always 0 and their distance2 is always 1,000,000
 //- All rc.onTheMap calls can be replaced with cheaper switch statements
 //- Math.sqrt isn't needed in the score calculations
-package turtleplayer;
+package microtest2;
 
 import battlecode.common.Direction;
 import battlecode.common.MapLocation;

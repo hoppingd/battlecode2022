@@ -1,4 +1,4 @@
-package turtleplayer;
+package microtest2;
 
 import battlecode.common.*;
 
@@ -83,7 +83,7 @@ public class Miner extends MyRobot {
     }
 
     void tryDisintegrate() {
-        if (rc.getHealth() >= DISINTEGRATE_HEALTH || rc.getRoundNum() < Communication.P3_START) return;
+        if (rc.getHealth() >= DISINTEGRATE_HEALTH) return;
         if (!rc.isActionReady()) return;
         MapLocation myLoc = rc.getLocation();
         try {

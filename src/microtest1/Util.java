@@ -1,4 +1,4 @@
-package turtleplayer;
+package microtest1;
 
 import battlecode.common.*;
 

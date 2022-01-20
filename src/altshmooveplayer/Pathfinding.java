@@ -285,7 +285,7 @@ public class Pathfinding {
         }
 
         class MicroInfo{
-            int numEnemies;
+            double numEnemies;
             int minDistToEnemy = INF;
             int rubble = GameConstants.MAX_RUBBLE + 1;
             MapLocation loc;
@@ -302,8 +302,14 @@ public class Pathfinding {
 
             void update(RobotInfo robot) {
                 int d = robot.location.distanceSquaredTo(loc);
+                int r = 0;
                 if (d <= robot.type.actionRadiusSquared && robot.getType().canAttack()) {
-                    numEnemies++;
+                    try {
+                        if (rc.onTheMap(loc)) r = rc.senseRubble(robot.getLocation());
+                    } catch (Throwable e) {
+                        e.printStackTrace();
+                    }
+                    numEnemies += 10 - (r/10);
                 }
                 if (d < minDistToEnemy) minDistToEnemy = d;
             }

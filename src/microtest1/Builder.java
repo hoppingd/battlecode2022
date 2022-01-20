@@ -1,4 +1,4 @@
-package microplayer;
+package microtest1;
 
 import battlecode.common.*;
 
@@ -136,39 +136,22 @@ public class Builder extends MyRobot {
         }
         else if(!comm.labIsBuilt() && currRound > comm.P4_START) {
             if (rc.getLocation().isAdjacentTo(nearestCorner) && rc.getTeamLeadAmount(myTeam) > RobotType.LABORATORY.buildCostLead) {
-                MapLocation bestLoc = null;
-                int bestRubble = 10000;
-                int bestDist = 10000;
-                for (Direction dir : spawnDirections) {
-                    MapLocation cell = rc.getLocation().add(dir);
-                    try {
-                        if (!rc.canSenseLocation(cell) || rc.isLocationOccupied(cell)) continue;
-                        int rubble = rc.senseRubble(cell);
-                        if (bestLoc == null) {
-                            bestLoc = cell;
-                            bestRubble = rubble;
-                            bestDist = cell.distanceSquaredTo(nearestCorner);
+                if (comm.HQloc.equals(nearestCorner)) { // edge case if archon is in corner
+                    for (Direction dir : spawnDirections) {
+                        try {
+                            if (rc.canBuildRobot(RobotType.LABORATORY, dir)){
+                                rc.buildRobot(RobotType.LABORATORY, dir);
+                                return;
+                            }
+                        } catch (Throwable t) {
+                            t.printStackTrace();
                         }
-                        else if (rubble < bestRubble) {
-                            bestLoc = cell;
-                            bestRubble = rubble;
-                            bestDist = cell.distanceSquaredTo(nearestCorner);
-                        }
-                        else if (rubble == bestRubble && cell.distanceSquaredTo(nearestCorner) < bestDist) {
-                            bestLoc = cell;
-                            bestRubble = rubble;
-                            bestDist = cell.distanceSquaredTo(nearestCorner);
-                        }
-
-                    } catch (Throwable t) {
-                        t.printStackTrace();
                     }
                 }
+                Direction dir = rc.getLocation().directionTo(nearestCorner);
                 try {
-                    if (bestLoc != null && rc.canBuildRobot(RobotType.LABORATORY, rc.getLocation().directionTo(bestLoc))) {
-                        rc.buildRobot(RobotType.LABORATORY, rc.getLocation().directionTo(bestLoc));
-                        comm.setLabBuilt();
-                        return;
+                    if (rc.canBuildRobot(RobotType.LABORATORY, dir)){
+                        rc.buildRobot(RobotType.LABORATORY, dir);
                     }
                 } catch (Throwable t) {
                     t.printStackTrace();
@@ -270,28 +253,6 @@ public class Builder extends MyRobot {
                 bestRepair = allyLoc;
             }
         }
-        try {
-            if (bestRepair != null) {
-                MapLocation bestLoc = bestRepair;
-                int bestRubble = 10000;
-                for (Direction dir : spawnDirections) {
-                    MapLocation prospect = bestLoc.add(dir);
-                    if (!rc.canSenseLocation(prospect)) continue;
-                    int rubble = rc.senseRubble(prospect);
-                    if (rubble < bestRubble) {
-                        bestRubble = rubble;
-                        bestLoc = prospect;
-                    }
-                    else if (rubble == bestRubble && rc.getLocation().distanceSquaredTo(prospect) < rc.getLocation().distanceSquaredTo(bestLoc)) {
-                        bestLoc = prospect;
-                    }
-                }
-                bestRepair = bestLoc;
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-
         return bestRepair;
     }
 

@@ -1,4 +1,4 @@
-package turtleplayer;
+package microtest2;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
@@ -220,118 +220,15 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildMiner() {
-        if (task == Communication.CRUNCH) return false; //crunch
-        // PHASE 1
-        if (currRound < Communication.P2_START) {
-            if (!arrived) {
-                return true; // archon hasn't started voyaging, build miner
-            }
-            else if (task == Communication.EMERGENCY) {
-                return false; // emergency
-            }
-            else if (minersBuilt < P1_MINERS - comm.numArchons - P1_MINERS_MODIFIER) { // hq build miners
-                return true;
-            }
-            else if (builderCount < P1_BUILDERS && (mapLeadScore > Communication.HIGH_LEAD_THRESHOLD)) { // need more deposits or need to rush towers
-                return false;
-            }
-            return false;
-        }
-        // PHASE 2
-        else if (currRound < Communication.P3_START) {
-            int buildCode = comm.readBuildCode(2); // alternate soldiers and miners
-            if (buildCode == 0) {
-                comm.writeBuildCode(2, 1);
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-        // PHASE 3
-        else if (currRound < Communication.P4_START) {
-            int buildCode = comm.readBuildCode(3);
-            if (buildCode == 1) {
-                comm.writeBuildCode(3,2);
-                return true;
-            }
-            return false;
-        }
-        // PHASE 4
-        else {
-            if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            if (comm.getSpawnCount() % 3 == 0) {
-                return true;
-            }
-        }
         return false;
     }
 
     boolean shouldBuildBuilder() {
-        if (task == Communication.CRUNCH) return false; //crunch
-        // PHASE 1
-        if (currRound < Communication.P2_START) {
-            if (arrived && builderCount < P1_BUILDERS && (mapLeadScore > Communication.HIGH_LEAD_THRESHOLD)) return true; // early towers
-            return false;
-        }
-        // PHASE 2
-        else if (currRound < Communication.P3_START) { //TODO: disintegrate miners if lead is low
-            if (builderCount < minersBuilt && builderCount < P2_BUILDERS && mapLeadScore > Communication.HIGH_LEAD_THRESHOLD ) return true; // early towers
-            return false;
-        }
-        // PHASE 3
-        else if (currRound < Communication.P4_START) {
-            return false;
-
-        }
-        // PHASE 4
-        else {
-            return false;
-        }
+        return false;
     }
 
     boolean shouldBuildSoldier() {
-        if (currGold > RobotType.SAGE.buildCostGold) return false;
-        if (task == 4) return true; //crunch
-        // PHASE 1
-        if (currRound < Communication.P2_START) {
-            if (mapLeadScore < Communication.HIGH_LEAD_THRESHOLD) return true;
-            return false;
-        }
-        // PHASE 2
-        else if (currRound < Communication.P3_START) {
-            if (currLead > 200) {
-                return true;
-            }
-            int buildCode = comm.readBuildCode(2);
-            if (buildCode == 1) {
-                comm.writeBuildCode(2, 0);
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-        // PHASE 3
-        else if (currRound < Communication.P4_START) {
-            int buildCode = comm.readBuildCode(3);
-            if (buildCode == 2) {
-                comm.writeBuildCode(3,0);
-                return true;
-            }
-            if (buildCode == 0) {
-                comm.writeBuildCode(3,1);
-                return true;
-            }
-            else {
-                return false;
-            }
-        }
-        // PHASE 4
-        else {
-            if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            return true;
-        }
+        return true;
     }
 
     boolean shouldBuildSage() {
@@ -446,7 +343,7 @@ public class Archon extends MyRobot {
     }
 
     void tryRepair() {
-        if (currRound < Communication.P3_START || !rc.isActionReady()) return;
+        if (!rc.isActionReady()) return;
         RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
         MapLocation bestLoc = null;
         int lowestHP = 10000;

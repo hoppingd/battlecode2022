@@ -29,7 +29,7 @@
 // [28] Crunch index = idx
 // [29-63] Enemy logs and ids = yyyy yyxx xxxx / id (6 bits)
 
-package turtleplayer;
+package microtest2;
 
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;

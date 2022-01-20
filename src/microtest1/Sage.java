@@ -1,4 +1,4 @@
-package microplayer;
+package microtest1;
 
 import battlecode.common.*;
 
@@ -207,6 +207,55 @@ public class Sage extends MyRobot {
             }
             default:
         }
+    }
+
+    MapLocation getGreedyAttackTile(MapLocation pursuitTarget) {
+        MapLocation myLoc = rc.getLocation();
+        MapLocation bestLoc = myLoc;
+        try {
+            int bestRubble = rc.senseRubble(myLoc);
+            for (Direction dir : fleeDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!rc.canMove(dir)) continue; // reduce bytecode?
+                if (prospect.distanceSquaredTo(pursuitTarget) <= RobotType.SAGE.visionRadiusSquared) {
+                    int r = rc.senseRubble(prospect);
+                    // in case of tie, stay at farther range
+                    if (r < bestRubble || (r == bestRubble && prospect.distanceSquaredTo(pursuitTarget) > myLoc.distanceSquaredTo(pursuitTarget))) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        System.err.println("pursuit target: " + pursuitTarget + ", greedily moved to " + bestLoc);
+        return bestLoc;
+    }
+    // flees to the lowest rubble tile away from enemy
+    MapLocation flee(MapLocation enemy) {
+        MapLocation myLoc = rc.getLocation();
+        int bestRubble = GameConstants.MAX_RUBBLE;
+        MapLocation bestLoc = null;
+        int d1 = myLoc.distanceSquaredTo(enemy);
+        try {
+            for (Direction dir : fleeDirections) {
+                MapLocation prospect = myLoc.add(dir);
+                if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
+                if (prospect.distanceSquaredTo(enemy) > d1) {
+                    int r = rc.senseRubble(prospect);
+                    if (r < bestRubble) {
+                        bestLoc = prospect;
+                        bestRubble = r;
+                    }
+                    //TODO: tiebreak with distance
+                }
+
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return bestLoc;
     }
 
     void senseEnemyArchons() { // check for enemy archon and write
