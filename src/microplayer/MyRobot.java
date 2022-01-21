@@ -28,7 +28,7 @@ public abstract class MyRobot {
         this.rc = rc;
         comm = new Communication(rc);
         explore = new Exploration(rc);
-        bfs = new BFSDroid(rc, explore); //if need to move units with visions other than 20, switch here
+        bfs = new BFSDroid(rc, explore, comm); //if need to move units with visions other than 20, switch here
     }
 
     abstract void play();

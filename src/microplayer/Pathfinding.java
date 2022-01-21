@@ -9,6 +9,7 @@ public class Pathfinding {
     static final int MIN_HEALTH_TO_REINFORCE = 11; // soldiers and sages
 
     RobotController rc;
+    Communication comm;
     MapLocation target = null;
     double avgRubble = 100;
 
@@ -49,9 +50,10 @@ public class Pathfinding {
         return bugNav.doMicro();
     }
 
-    Pathfinding(RobotController rc, Exploration explore){
+    Pathfinding(RobotController rc, Exploration explore, Communication comm){
         this.rc = rc;
         this.explore = explore;
+        this.comm = comm;
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
     }
@@ -205,6 +207,12 @@ public class Pathfinding {
         }
 
         boolean doMicro() {
+            // if tons of allies, we need to use our numbers advantage. returning false will cause units to push to archon
+            if (comm.getTask() == Communication.CRUNCH) {
+                RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared);
+                if (allies.length > 12) return false;
+            }
+            // doMicro
             MicroInfo[] microInfo = new MicroInfo[9];
             for (int i = 0; i < 9; i++) microInfo[i] = new MicroInfo(rc.getLocation().add(directions[i]));
 
@@ -218,7 +226,7 @@ public class Pathfinding {
 
             int bestIndex = -1;
             for (int i = 8; i >= 0; i--) {
-                if (!rc.canMove(directions[i])) continue;
+                if (!rc.canMove(directions[i]) && directions[i] != Direction.CENTER) continue; //TODO: seperate if
                 if (bestIndex < 0 || !microInfo[bestIndex].isBetter(microInfo[i])) bestIndex = i;
             }
 
@@ -274,6 +282,8 @@ public class Pathfinding {
                             }
                         }
                         //System.err.println("microing to " + rc.getLocation().add(directions[bestIndex]));
+                        rc.setIndicatorString("doMicro");
+                        if (directions[bestIndex] == Direction.CENTER) return true;
                         rc.move(directions[bestIndex]);
                     } catch (Throwable e){
                         e.printStackTrace();
@@ -294,7 +304,7 @@ public class Pathfinding {
                 this.loc = loc;
                 enemyDPS = 0;
                 try {
-                    if (rc.onTheMap(loc)) myDPS = 11 - rc.senseRubble(loc)/10;
+                    if (rc.onTheMap(loc)) myDPS = 11.0 - (rc.senseRubble(loc)/10.0);
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
@@ -309,7 +319,7 @@ public class Pathfinding {
                     } catch (Throwable e) {
                         e.printStackTrace();
                     }
-                    enemyDPS += 11 - (r/10);
+                    enemyDPS += 11.0 - (r/10.0);
                 }
                 if (d < minDistToEnemy) minDistToEnemy = d;
             }
@@ -318,7 +328,11 @@ public class Pathfinding {
                 return rc.getType().actionRadiusSquared >= minDistToEnemy;
             }
 
+            //TODO: fix, is bugged
             boolean isBetter(MicroInfo m) {
+                // never move to significantly higher rubble
+                if (myDPS -.3 > m.myDPS) return true;
+                // do micro
                 if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE) {
                     double dpsDiff = enemyDPS - myDPS;
                     double mdpsDiff = m.enemyDPS - m.myDPS;

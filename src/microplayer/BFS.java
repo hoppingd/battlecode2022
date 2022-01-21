@@ -18,10 +18,10 @@ public abstract class BFS {
 
 
 
-    BFS(RobotController rc, Exploration explore){
+    BFS(RobotController rc, Exploration explore, Communication comm){
         this.rc = rc;
         this.explore = explore;
-        this.path = new Pathfinding(rc, explore);
+        this.path = new Pathfinding(rc, explore, comm);
     }
 
     void reset(){

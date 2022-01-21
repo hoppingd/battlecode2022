@@ -120,13 +120,6 @@ public class Sage extends MyRobot {
                 break;
             }
             case 1: {// defensive lattice
-                /* chase code
-                MapLocation nearbyEnemy = enemyInSight();
-                if (nearbyEnemy != null) {
-                    bfs.move(nearbyEnemy);
-                    return;
-
-                 */
                 MapLocation myLoc = rc.getLocation();
                 if (rc.senseNearbyRobots(myLoc, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(myLoc)) { // some spacing condition
                     return;
@@ -224,32 +217,6 @@ public class Sage extends MyRobot {
             }
         }
     }
-
-    /*boolean goToEnemyHQ(){
-        MapLocation ans = null;
-        int minDist = -1;
-        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
-            if (r.getMapLocation() == null) continue;
-            if (r.team != rc.getTeam().opponent().ordinal()) continue;
-            if (rc.getRoundNum() - r.turnExplored <= EC_DELAY) continue;
-            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
-            if (minDist < 0 || minDist > dist){
-                minDist = dist;
-                ans = r.getMapLocation();
-            }
-        }
-        return moveSafely(ans, Util.SAFETY_DISTANCE_ENEMY_EC);
-    }*/
-
-    /*void updateECs(){
-        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
-            if (r.getMapLocation() == null) continue;
-            if (r.team != rc.getTeam().opponent().ordinal()) continue;
-            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
-            if (dist > Util.MUCKRAKER_DIST_EC) continue;
-            r.turnExplored = rc.getRoundNum();
-        }
-    }*/
 
     boolean validLattice(MapLocation loc) {
         int d1 = loc.distanceSquaredTo(nearestCorner);

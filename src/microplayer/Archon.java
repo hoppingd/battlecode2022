@@ -269,7 +269,7 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildBuilder() {
-        if (task == Communication.CRUNCH) return false; //crunch
+        //if (task == Communication.CRUNCH) return false; //crunch
         // PHASE 1
         if (currRound < Communication.P2_START) {
             if (arrived && builderCount < P1_BUILDERS && (mapLeadScore > Communication.HIGH_LEAD_THRESHOLD)) return true; // early towers
@@ -294,7 +294,7 @@ public class Archon extends MyRobot {
 
     boolean shouldBuildSoldier() {
         if (currGold > RobotType.SAGE.buildCostGold) return false;
-        if (task == 4) return true; //crunch
+        //if (task == 4) return true; //crunch
         // PHASE 1
         if (currRound < Communication.P2_START) {
             if (mapLeadScore < Communication.HIGH_LEAD_THRESHOLD) return true;

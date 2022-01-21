@@ -14,8 +14,8 @@ import java.util.Collections;
 
 public class BFSDroid extends BFS {
 
-    BFSDroid(RobotController rc, Exploration explore){
-        super(rc, explore);
+    BFSDroid(RobotController rc, Exploration explore, Communication comm){
+        super(rc, explore, comm);
     }
 
     static MapLocation l30;

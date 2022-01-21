@@ -57,16 +57,19 @@ public class Soldier extends MyRobot {
             tryMove();
         }
         tryAttack();
+        // if attacking, don't risk disintegration
+        if (!rc.isActionReady()) turnsHealing = 0;
     }
 
+    //TODO: prioritize builders over miners
     void tryAttack(){
         if (!rc.isActionReady()) return;
-        RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
+        //RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
         boolean attackerInRange = false;
         // don't attack miners if soldiers in view
-        for (RobotInfo r : nearbyEnemies) {
+        for (RobotInfo r : enemies) {
             if (r.type.canAttack()) {
                 comm.writeEnemyToLog(r.location);
                 attackerInRange = true;
@@ -115,6 +118,7 @@ public class Soldier extends MyRobot {
 
     // TODO: cleanup
     void tryMove(){
+        rc.setIndicatorString("tryMove");
         if (!rc.isMovementReady()) return;
         switch (task) {
             case 0: {// scout
