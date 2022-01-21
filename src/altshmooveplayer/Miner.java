@@ -1,4 +1,4 @@
-package queueplayer;
+package altshmooveplayer;
 
 import battlecode.common.*;
 
@@ -39,7 +39,7 @@ public class Miner extends MyRobot {
     }
 
     public void play(){
-        if (comm.HQloc == null) comm.readHQloc();
+        comm.readHQloc();
         // alternate explore targets
         if (rc.getRoundNum() == birthday) {
             minerCode = comm.getMinerCode();
@@ -52,7 +52,7 @@ public class Miner extends MyRobot {
         }
         comm.getLoggedEnemies();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
-        //tryDisintegrate();
+        tryDisintegrate();
         tryMine();
         if (rc.isMovementReady()) {
             tryMove();
@@ -109,7 +109,7 @@ public class Miner extends MyRobot {
                 numEnemies++;
             }
         }
-        if (numEnemies > numAllies) {
+        if (numEnemies*3 > numAllies) { // modifier so miners stay safer
             explore.reset();
             return comm.HQloc;
         }
@@ -155,10 +155,9 @@ public class Miner extends MyRobot {
         }
     }
 
-    // miners ignore soldiers TODO: mine on low rubble locations
     void tryMove() {
         MapLocation loc = flee();
-        //if (rc.getHealth() < DISINTEGRATE_HEALTH && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
+        if (rc.getHealth() < DISINTEGRATE_HEALTH && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
         if (loc == null) loc = getClosestMine();
         if (loc != null){
             bfs.move(loc);
@@ -180,7 +179,7 @@ public class Miner extends MyRobot {
         try {
             MapLocation[] leadMines = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared, MIN_LEAD_TO_MINE);
             for (MapLocation mine : leadMines) { // interlinked
-                if ((comm.HQloc != null && mine.isAdjacentTo(comm.HQloc)) || rc.senseNearbyRobots(mine, 2, myTeam).length > 2) continue;
+                if (rc.senseNearbyRobots(mine, 2, myTeam).length > 1) continue; // only go to mines with few miners nearby
                 int dist = myLoc.distanceSquaredTo(mine);
                 if (bestMine == null) {
                     bestMine = mine;
@@ -190,6 +189,24 @@ public class Miner extends MyRobot {
                     bestMine = mine;
                     bestDist = dist;
                 }
+            }
+            // get lowest rubble adjacent location, break ties with proximity TODO: consider if location is occupied
+            if (bestMine != null) {
+                MapLocation bestLoc = bestMine;
+                int bestRubble = rc.senseRubble(bestMine);
+                for (Direction dir : dirs) {
+                    MapLocation prospect = bestMine.add(dir);
+                    if (!rc.canSenseLocation(prospect)) continue;
+                    int rubble = rc.senseRubble(prospect);
+                    if (rubble < bestRubble) {
+                        bestRubble = rubble;
+                        bestLoc = prospect;
+                    }
+                    else if (rubble == bestRubble && myLoc.distanceSquaredTo(prospect) < myLoc.distanceSquaredTo(bestLoc)) {
+                        bestLoc = prospect;
+                    }
+                }
+                bestMine = bestLoc;
             }
         } catch (Throwable t) {
             t.printStackTrace();

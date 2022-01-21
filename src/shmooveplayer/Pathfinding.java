@@ -1,12 +1,10 @@
-package microplayer;
+package shmooveplayer;
 
 import battlecode.common.*;
 
 import java.util.HashSet;
 
 public class Pathfinding {
-
-    static final int MIN_HEALTH_TO_REINFORCE = 11; // soldiers and sages
 
     RobotController rc;
     MapLocation target = null;
@@ -226,7 +224,7 @@ public class Pathfinding {
                 if (enemies.length > 0) {
                     try {
                         //try attacking if fleeing all combat
-                        if(rc.isActionReady() && microInfo[bestIndex].enemyDPS == 0) {
+                        if(rc.isActionReady() && microInfo[bestIndex].numEnemies == 0) {
                             RobotInfo[] enemiesToAttack = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
                             MapLocation bestLoc = null;
                             boolean attackerInRange = false;
@@ -284,32 +282,26 @@ public class Pathfinding {
             return false;
         }
 
-        class MicroInfo {
-            double enemyDPS;
+        class MicroInfo{
+            int numEnemies;
             int minDistToEnemy = INF;
-            double myDPS = 0;
+            int rubble = GameConstants.MAX_RUBBLE + 1;
             MapLocation loc;
 
             public MicroInfo(MapLocation loc) {
                 this.loc = loc;
-                enemyDPS = 0;
+                numEnemies = 0;
                 try {
-                    if (rc.onTheMap(loc)) myDPS = 11 - rc.senseRubble(loc)/10;
+                    if (rc.onTheMap(loc)) rubble = rc.senseRubble(loc);
                 } catch (Throwable e) {
                     e.printStackTrace();
                 }
             }
 
             void update(RobotInfo robot) {
-                int r = 0;
                 int d = robot.location.distanceSquaredTo(loc);
                 if (d <= robot.type.actionRadiusSquared && robot.getType().canAttack()) {
-                    try {
-                        if (rc.onTheMap(loc)) r = rc.senseRubble(robot.getLocation());
-                    } catch (Throwable e) {
-                        e.printStackTrace();
-                    }
-                    enemyDPS += 11 - (r/10);
+                    numEnemies++;
                 }
                 if (d < minDistToEnemy) minDistToEnemy = d;
             }
@@ -318,47 +310,20 @@ public class Pathfinding {
                 return rc.getType().actionRadiusSquared >= minDistToEnemy;
             }
 
-            boolean isBetter(MicroInfo m) {
-                if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE) {
-                    double dpsDiff = enemyDPS - myDPS;
-                    double mdpsDiff = m.enemyDPS - m.myDPS;
-                    // bad attack
-                    if (dpsDiff > 0) {
-                        if (mdpsDiff < dpsDiff) return false;
-                        if (mdpsDiff > dpsDiff) return true;
-                        return minDistToEnemy >= m.minDistToEnemy;
-                    }
-                    // even attack
-                    if (dpsDiff == 0) {
-                        if (mdpsDiff > 0) return true;
-                        if (mdpsDiff < 0 && m.canAttack()) return false;
-                        if (!m.canAttack()) return false; // attack in even fights
-                        if (myDPS > m.myDPS) return true;
-                        if (myDPS < m.myDPS) return false;
-                        return minDistToEnemy >= m.minDistToEnemy;
-                    }
-                    // safe
-                    if (!canAttack()) {
-                        if (mdpsDiff > 0) return true;
-                        if (mdpsDiff <= 0 && m.canAttack()) return false;
-                        if (myDPS > m.myDPS) return true;
-                        if (myDPS < m.myDPS) return false;
-                        return minDistToEnemy <= m.minDistToEnemy;
-                    }
-                    // good attack
-                    if (mdpsDiff > dpsDiff || !m.canAttack()) return true;
-                    if (mdpsDiff < dpsDiff) return false;
-                    if (myDPS > m.myDPS) return true;
-                    if (myDPS < m.myDPS) return false;
-                    return minDistToEnemy >= m.minDistToEnemy;
+            //TODO: improve
+            boolean isBetter (MicroInfo m) {
+                if (rubble < m.rubble) {
+                    return true;
                 }
-                // if health is low, will try to get out of combat
+                if (rubble > m.rubble) return false;
+                if (numEnemies < m.numEnemies) return true;
+                if (numEnemies > m.numEnemies) return false;
                 if (canAttack()) {
-                    if (!m.canAttack()) return false;
+                    if (!m.canAttack()) return true;
                     return minDistToEnemy >= m.minDistToEnemy;
                 }
-                if (m.canAttack()) return true;
-                return minDistToEnemy >= m.minDistToEnemy;
+                if (m.canAttack()) return false;
+                return minDistToEnemy <= m.minDistToEnemy;
             }
         }
     }

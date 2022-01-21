@@ -16,7 +16,7 @@ public class Soldier extends MyRobot {
     };
 
     static final int LATTICE_CONGESTION = 0;
-    static final int MIN_HEALTH_TO_REINFORCE = 4;
+    static final int MIN_HEALTH_TO_REINFORCE = 11;
 
     int birthday;
     int H, W;
@@ -48,7 +48,7 @@ public class Soldier extends MyRobot {
         if (rc.getHealth() == rc.getType().getMaxHealth(rc.getLevel())) {
             healing = false;
         }
-        if (!bfs.doMicro()) {
+        if (!bfs.doMicro()) { // TODO: flee if health under threshold
             tryMove();
         }
         tryAttack();

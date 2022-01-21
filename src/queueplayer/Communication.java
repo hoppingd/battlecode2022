@@ -9,7 +9,7 @@
 // [8] EnemyArchon 2: ARCHON_SET yyyy yyxx xxxx
 // [9] EnemyArchon 3: ARCHON_SET yyyy yyxx xxxx
 // [10] EnemyArchon 4: ARCHON_SET yyyy yyxx xxxx
-// [11] FREE
+// [11] MinerCode: 0|1
 // [12] FREE
 // [13] FREE
 // [14] FREE
@@ -147,6 +147,24 @@ public class Communication {
     void readLeadScore() {
         try {
             leadScore = rc.readSharedArray(26);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    int getMinerCode() {
+        int minerCode = 0;
+        try {
+            minerCode = rc.readSharedArray(11);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return minerCode;
+    }
+
+    void setMinerCode(int minerCode) {
+        try {
+            rc.writeSharedArray(11, minerCode);
         } catch (Throwable t) {
             t.printStackTrace();
         }

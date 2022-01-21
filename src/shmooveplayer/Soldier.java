@@ -1,10 +1,10 @@
-package microplayer;
+package shmooveplayer;
 
 import battlecode.common.*;
 
-public class Sage extends MyRobot {
+public class Soldier extends MyRobot {
 
-    static final Direction[] fleeDirections = {
+    static final Direction[] moveDirections = {
             Direction.NORTH,
             Direction.NORTHEAST,
             Direction.EAST,
@@ -24,13 +24,12 @@ public class Sage extends MyRobot {
 
     MapLocation nearestCorner;
     int task = 0;
-    RobotInfo[] nearbyEnemies;
     double mapLeadScore;
     MapLocation target;
     MapLocation nearestLoggedEnemy;
     boolean healing = false;
 
-    public Sage(RobotController rc){
+    public Soldier(RobotController rc){
         super(rc);
         birthday = rc.getRoundNum();
         H = rc.getMapHeight();
@@ -39,27 +38,27 @@ public class Sage extends MyRobot {
         enemyTeam = myTeam.opponent();
         comm.readHQloc();
         nearestCorner = getNearestCorner();
-        nearbyEnemies = rc.senseNearbyRobots(RobotType.SAGE.visionRadiusSquared, enemyTeam);
         mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
     }
 
     public void play() {
-        task = comm.getTask();
+        target = null;
         nearestLoggedEnemy = comm.getLoggedEnemies();
         comm.readHQloc();
+        task = comm.getTask();
         if (rc.getHealth() == rc.getType().getMaxHealth(rc.getLevel())) {
             healing = false;
         }
-        if (!bfs.doMicro()) {
+        if (!bfs.doMicro()) { // TODO: flee if health under threshold
             tryMove();
         }
         tryAttack();
     }
 
-    // TODO: optimize health targeting for sage
     void tryAttack(){
         if (!rc.isActionReady()) return;
-        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SAGE.actionRadiusSquared, enemyTeam);
+        RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
+        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
         boolean attackerInRange = false;
         // don't attack miners if soldiers in view
@@ -67,7 +66,6 @@ public class Sage extends MyRobot {
             if (r.type.canAttack()) {
                 comm.writeEnemyToLog(r.location);
                 attackerInRange = true;
-                break;
             }
         }
         int bestHealth = 10000;
@@ -111,9 +109,6 @@ public class Sage extends MyRobot {
     // TODO: cleanup
     void tryMove(){
         if (!rc.isMovementReady()) return;
-        if (rc.getRoundNum() == birthday) {
-            task = comm.getTask();
-        }
         switch (task) {
             case 0: {// scout
 
@@ -146,7 +141,7 @@ public class Sage extends MyRobot {
                 break;
             }
             case 3: { // explore
-                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
+                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
                 boolean attackerInRange = false;
                 for (RobotInfo r : nearbyEnemies) {
                     if (r.type.canAttack()) {
@@ -161,10 +156,12 @@ public class Sage extends MyRobot {
                     else {
                         if (!healing) healing = true;
                         if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
+                            //System.err.println("healing...");
                             target = rc.getLocation();
                         }
                         else {
                             target = comm.HQloc;
+                            //System.err.println("retreating...");
                         }
                     }
                 }
@@ -176,7 +173,6 @@ public class Sage extends MyRobot {
                 break;
             }
             case 4: { // crunch TODO: improve. get lowest index or nearest non null archon location. bug when archon is destroyed but not crunching.
-                task = comm.getTask();
                 comm.readEnemyArchonLocations();
                 int crunchIdx = comm.getCrunchIdx();
                 if (comm.enemyArchons[crunchIdx] != null) {
@@ -210,6 +206,7 @@ public class Sage extends MyRobot {
     }
 
     void senseEnemyArchons() { // check for enemy archon and write
+        RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         for (RobotInfo r : nearbyEnemies) {
             if (r.getType() == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(r);

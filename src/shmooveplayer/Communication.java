@@ -29,7 +29,7 @@
 // [28] Crunch index = idx
 // [29-63] Enemy logs and ids = yyyy yyxx xxxx / id (6 bits)
 
-package microplayer;
+package shmooveplayer;
 
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
@@ -57,7 +57,7 @@ public class Communication {
     //P4: start stockpiling lead for watchtowers and laboratory
     static final int P2_START = 80;
     static final int P3_START = 200; //survived rush, hopefully
-    static final int P4_START = 1500;
+    static final int P4_START = 1000;
     static final int P4_SAVINGS = 325;
 
     static final int HIGH_LEAD_THRESHOLD = 2000;
@@ -470,32 +470,6 @@ public class Communication {
             t.printStackTrace();
         }
         return isBuilt;
-    }
-
-    void setLabBuilt() {
-        try {
-            rc.writeSharedArray(11, 1);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-
-    boolean builderIsBuilt() {
-        boolean isBuilt = false;
-        try {
-            isBuilt = rc.readSharedArray(12) == 1;
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return isBuilt;
-    }
-
-    void setBuilderBuilt() {
-        try {
-            rc.writeSharedArray(12, 1);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
     }
 
     MapLocation getHQOpposite() {

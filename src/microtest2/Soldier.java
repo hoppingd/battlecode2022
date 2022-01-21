@@ -1,10 +1,10 @@
-package microplayer;
+package microtest2;
 
 import battlecode.common.*;
 
-public class Sage extends MyRobot {
+public class Soldier extends MyRobot {
 
-    static final Direction[] fleeDirections = {
+    static final Direction[] moveDirections = {
             Direction.NORTH,
             Direction.NORTHEAST,
             Direction.EAST,
@@ -22,15 +22,14 @@ public class Sage extends MyRobot {
     int H, W;
     Team myTeam, enemyTeam;
 
-    MapLocation nearestCorner;
+    //MapLocation nearestCorner;
     int task = 0;
-    RobotInfo[] nearbyEnemies;
     double mapLeadScore;
     MapLocation target;
     MapLocation nearestLoggedEnemy;
     boolean healing = false;
 
-    public Sage(RobotController rc){
+    public Soldier(RobotController rc){
         super(rc);
         birthday = rc.getRoundNum();
         H = rc.getMapHeight();
@@ -38,15 +37,15 @@ public class Sage extends MyRobot {
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
         comm.readHQloc();
-        nearestCorner = getNearestCorner();
-        nearbyEnemies = rc.senseNearbyRobots(RobotType.SAGE.visionRadiusSquared, enemyTeam);
+        //nearestCorner = getNearestCorner();
         mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
     }
 
     public void play() {
-        task = comm.getTask();
+        target = null;
         nearestLoggedEnemy = comm.getLoggedEnemies();
         comm.readHQloc();
+        task = comm.getTask();
         if (rc.getHealth() == rc.getType().getMaxHealth(rc.getLevel())) {
             healing = false;
         }
@@ -56,10 +55,10 @@ public class Sage extends MyRobot {
         tryAttack();
     }
 
-    // TODO: optimize health targeting for sage
     void tryAttack(){
         if (!rc.isActionReady()) return;
-        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SAGE.actionRadiusSquared, enemyTeam);
+        RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
+        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
         boolean attackerInRange = false;
         // don't attack miners if soldiers in view
@@ -67,7 +66,6 @@ public class Sage extends MyRobot {
             if (r.type.canAttack()) {
                 comm.writeEnemyToLog(r.location);
                 attackerInRange = true;
-                break;
             }
         }
         int bestHealth = 10000;
@@ -111,26 +109,13 @@ public class Sage extends MyRobot {
     // TODO: cleanup
     void tryMove(){
         if (!rc.isMovementReady()) return;
-        if (rc.getRoundNum() == birthday) {
-            task = comm.getTask();
-        }
         switch (task) {
             case 0: {// scout
 
                 break;
             }
             case 1: {// defensive lattice
-                /* chase code
-                MapLocation nearbyEnemy = enemyInSight();
-                if (nearbyEnemy != null) {
-                    bfs.move(nearbyEnemy);
-                    return;
-
-                 */
                 MapLocation myLoc = rc.getLocation();
-                if (rc.senseNearbyRobots(myLoc, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(myLoc)) { // some spacing condition
-                    return;
-                }
                 target = getFreeSpace();
                 if (target != null) {
                     bfs.move(target);
@@ -146,37 +131,16 @@ public class Sage extends MyRobot {
                 break;
             }
             case 3: { // explore
-                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
-                boolean attackerInRange = false;
-                for (RobotInfo r : nearbyEnemies) {
-                    if (r.type.canAttack()) {
-                        attackerInRange = true;
-                        break;
-                    }
-                }
-                if (!attackerInRange) {
-                    if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE && !healing) {
-                        target = nearestLoggedEnemy;
-                    }
-                    else {
-                        if (!healing) healing = true;
-                        if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
-                            target = rc.getLocation();
-                        }
-                        else {
-                            target = comm.HQloc;
-                        }
-                    }
-                }
+                if (rc.getRoundNum() < 500) return;
+                target = nearestLoggedEnemy;
+
                 if (target == null) {
-                    target = explore.getExplore3Target();
+                    target = new MapLocation((W - 1)/2, (H - 1)/2);;
                 }
                 bfs.move(target);
-                senseEnemyArchons();
                 break;
             }
             case 4: { // crunch TODO: improve. get lowest index or nearest non null archon location. bug when archon is destroyed but not crunching.
-                task = comm.getTask();
                 comm.readEnemyArchonLocations();
                 int crunchIdx = comm.getCrunchIdx();
                 if (comm.enemyArchons[crunchIdx] != null) {
@@ -210,6 +174,7 @@ public class Sage extends MyRobot {
     }
 
     void senseEnemyArchons() { // check for enemy archon and write
+        RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         for (RobotInfo r : nearbyEnemies) {
             if (r.getType() == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(r);
@@ -225,37 +190,6 @@ public class Sage extends MyRobot {
         }
     }
 
-    /*boolean goToEnemyHQ(){
-        MapLocation ans = null;
-        int minDist = -1;
-        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
-            if (r.getMapLocation() == null) continue;
-            if (r.team != rc.getTeam().opponent().ordinal()) continue;
-            if (rc.getRoundNum() - r.turnExplored <= EC_DELAY) continue;
-            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
-            if (minDist < 0 || minDist > dist){
-                minDist = dist;
-                ans = r.getMapLocation();
-            }
-        }
-        return moveSafely(ans, Util.SAFETY_DISTANCE_ENEMY_EC);
-    }*/
-
-    /*void updateECs(){
-        for (Communication.RInfo r = comm.firstEC; r != null; r = r.nextInfo){
-            if (r.getMapLocation() == null) continue;
-            if (r.team != rc.getTeam().opponent().ordinal()) continue;
-            int dist = r.getMapLocation().distanceSquaredTo(rc.getLocation());
-            if (dist > Util.MUCKRAKER_DIST_EC) continue;
-            r.turnExplored = rc.getRoundNum();
-        }
-    }*/
-
-    boolean validLattice(MapLocation loc) {
-        int d1 = loc.distanceSquaredTo(nearestCorner);
-        return d1 > Math.sqrt(Math.sqrt(H*W)) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner);
-    }
-
     MapLocation getFreeSpace() { // soldiers will find closest free space
         MapLocation myLoc = rc.getLocation();
         MapLocation space = null;
@@ -263,7 +197,7 @@ public class Sage extends MyRobot {
             MapLocation[] cells = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
             for (MapLocation cell : cells) { // interlinked
                 if (!rc.canSenseLocation(cell)) continue; // needed?
-                if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(cell)) { // some spacing condition
+                if (rc.senseNearbyRobots(cell, 1, rc.getTeam()).length <= LATTICE_CONGESTION) { // some spacing condition
                     if (space == null) {
                         space = cell;
                     }

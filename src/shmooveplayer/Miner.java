@@ -1,4 +1,4 @@
-package queueplayer;
+package shmooveplayer;
 
 import battlecode.common.*;
 
@@ -39,7 +39,7 @@ public class Miner extends MyRobot {
     }
 
     public void play(){
-        if (comm.HQloc == null) comm.readHQloc();
+        comm.readHQloc();
         // alternate explore targets
         if (rc.getRoundNum() == birthday) {
             minerCode = comm.getMinerCode();
@@ -180,7 +180,7 @@ public class Miner extends MyRobot {
         try {
             MapLocation[] leadMines = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared, MIN_LEAD_TO_MINE);
             for (MapLocation mine : leadMines) { // interlinked
-                if ((comm.HQloc != null && mine.isAdjacentTo(comm.HQloc)) || rc.senseNearbyRobots(mine, 2, myTeam).length > 2) continue;
+                if (rc.senseNearbyRobots(mine, 2, myTeam).length > 1) continue; // only go to mines with few miners nearby
                 int dist = myLoc.distanceSquaredTo(mine);
                 if (bestMine == null) {
                     bestMine = mine;
@@ -190,6 +190,24 @@ public class Miner extends MyRobot {
                     bestMine = mine;
                     bestDist = dist;
                 }
+            }
+            // get lowest rubble adjacent location, break ties with proximity TODO: consider if location is occupied
+            if (bestMine != null) {
+                MapLocation bestLoc = bestMine;
+                int bestRubble = rc.senseRubble(bestMine);
+                for (Direction dir : dirs) {
+                    MapLocation prospect = bestMine.add(dir);
+                    if (!rc.canSenseLocation(prospect)) continue;
+                    int rubble = rc.senseRubble(prospect);
+                    if (rubble < bestRubble) {
+                        bestRubble = rubble;
+                        bestLoc = prospect;
+                    }
+                    else if (rubble == bestRubble && myLoc.distanceSquaredTo(prospect) < myLoc.distanceSquaredTo(bestLoc)) {
+                        bestLoc = prospect;
+                    }
+                }
+                bestMine = bestLoc;
             }
         } catch (Throwable t) {
             t.printStackTrace();

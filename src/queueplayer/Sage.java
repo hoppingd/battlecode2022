@@ -16,7 +16,7 @@ public class Sage extends MyRobot {
     };
 
     static final int LATTICE_CONGESTION = 0;
-    static final int MIN_HEALTH_TO_REINFORCE = 4;
+    static final int MIN_HEALTH_TO_REINFORCE = 7;
 
     int birthday;
     int H, W;

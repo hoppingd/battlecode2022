@@ -16,14 +16,18 @@ public class Miner extends MyRobot {
     };
 
     static final int MIN_LEAD_TO_MINE = 6;
-    static final int DISINTEGRATE_HEALTH = 21;
+    static final int DISINTEGRATE_HEALTH = 7;
+    static final int MAX_EXPLORE_TURNS = 100;
 
     Direction[] dirs = Direction.allDirections();
     int H, W;
     Team myTeam, enemyTeam;
+    int birthday;
 
     RobotInfo[] nearbyEnemies;
     double mapLeadScore;
+    int minerCode = 0;
+    int turnsWithoutMining = 0;
 
     public Miner(RobotController rc){
         super(rc);
@@ -31,12 +35,25 @@ public class Miner extends MyRobot {
         W = rc.getMapWidth();
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
+        birthday = rc.getRoundNum();
         comm.readHQloc();
         mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
     }
 
     public void play(){
-        if (comm.HQloc == null) comm.readHQloc();
+        turnsWithoutMining++;
+        comm.readHQloc();
+        // alternate explore targets
+        if (rc.getRoundNum() == birthday) {
+            minerCode = comm.getMinerCode();
+            if (minerCode == 0) {
+                comm.setMinerCode(1);
+            }
+            else {
+                comm.setMinerCode(0);
+            }
+        }
+        comm.getLoggedEnemies();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
         tryDisintegrate();
         tryMine();
@@ -69,7 +86,7 @@ public class Miner extends MyRobot {
     }
 
     void tryDisintegrate() {
-        if (rc.getHealth() >= DISINTEGRATE_HEALTH) return;
+        if (rc.getHealth() >= DISINTEGRATE_HEALTH && turnsWithoutMining < MAX_EXPLORE_TURNS) return;
         if (!rc.isActionReady()) return;
         MapLocation myLoc = rc.getLocation();
         try {
@@ -81,31 +98,39 @@ public class Miner extends MyRobot {
         }
     }
 
-    // flees to the lowest rubble tile away from enemy
-    MapLocation flee(MapLocation enemy) {
-        MapLocation myLoc = rc.getLocation();
-        int bestRubble = GameConstants.MAX_RUBBLE;
-        MapLocation bestLoc = null;
-        int d1 = myLoc.distanceSquaredTo(enemy);
-        try {
-            for (Direction dir : fleeDirections) {
-                MapLocation prospect = myLoc.add(dir);
-                if (!(rc.onTheMap(prospect))) continue; // reduce bytecode?
-                if (prospect.distanceSquaredTo(enemy) > d1) {
-                    int r = rc.senseRubble(prospect);
-                    if (r < bestRubble) {
-                        bestLoc = prospect;
-                        bestRubble = r;
-                    }
-                    //TODO: tiebreak with distance
-                }
-
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
+    // flees to HQ and resets explore if danger
+    MapLocation flee() {
+        RobotInfo[] nearbyAllies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, myTeam);
+        int numAllies = 0;
+        int numEnemies = 0;
+        for (RobotInfo r : nearbyAllies) {
+            if (r.getType().canAttack()) numAllies++;
         }
-        //System.err.println("miner fleeing at " + myLoc + " fleeing " + enemy + " to " + bestLoc);
-        return bestLoc;
+        for (RobotInfo r : nearbyEnemies) {
+            if (r.getType().canAttack()) {
+                comm.writeEnemyToLog(r.location);
+                numEnemies++;
+            }
+            else if (r.getType() == RobotType.ARCHON) {
+                comm.writeEnemyArchonLocation(r);
+                try {
+                    if (mapLeadScore < Communication.HIGH_LEAD_THRESHOLD && rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared).length > 9) { // sense should crunch
+                        comm.setTask(4); // CRUNCH!
+                    }
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
+            else if (r.getType() == RobotType.BUILDER) {
+                comm.setTask(4);
+            }
+        }
+        if (numEnemies*3 > numAllies) { // modifier so miners stay safer
+            explore.reset();
+            return comm.HQloc;
+        }
+
+        return null;
     }
 
     // TODO: improve
@@ -126,6 +151,7 @@ public class Miner extends MyRobot {
                     if (rc.isActionReady()) {
                         rc.mineLead(prospect);
                         lead--;
+                        turnsWithoutMining = 0;
                     }
                     else {
                         return;
@@ -135,6 +161,7 @@ public class Miner extends MyRobot {
                     if (rc.isActionReady()) {
                         rc.mineGold(prospect);
                         gold--;
+                        turnsWithoutMining = 0;
                     }
                     else {
                         return;
@@ -146,19 +173,24 @@ public class Miner extends MyRobot {
         }
     }
 
-    // miners ignore soldiers
     void tryMove() {
-        MapLocation loc = null;
-        if (rc.getHealth() < DISINTEGRATE_HEALTH) loc = getMineProspect(); // if too far from HQ, don't bother
+        MapLocation loc = flee();
+        if ((rc.getHealth() < DISINTEGRATE_HEALTH || turnsWithoutMining >= MAX_EXPLORE_TURNS) && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
         if (loc == null) loc = getClosestMine();
         if (loc != null){
             bfs.move(loc);
             return;
         }
-        loc = explore.getExplore2Target(); // use alternate function to find points of interest
+        if (minerCode == 0) { // switch on miner code?
+            loc = explore.getExplore2Target(); // use alternate function to find points of interest
+        }
+        else {
+            loc = explore.getExploreTarget();
+        }
         bfs.move(loc);
     }
 
+    // TODO: be greedy for gold
     MapLocation getClosestMine(){
         MapLocation myLoc = rc.getLocation();
         MapLocation bestMine = null;
@@ -166,7 +198,7 @@ public class Miner extends MyRobot {
         try {
             MapLocation[] leadMines = rc.senseNearbyLocationsWithLead(RobotType.MINER.visionRadiusSquared, MIN_LEAD_TO_MINE);
             for (MapLocation mine : leadMines) { // interlinked
-                if ((comm.HQloc != null && mine.isAdjacentTo(comm.HQloc)) || rc.senseNearbyRobots(mine, 2, myTeam).length > 2) continue;
+                if (rc.senseNearbyRobots(mine, 2, myTeam).length > 1) continue; // only go to mines with few miners nearby
                 int dist = myLoc.distanceSquaredTo(mine);
                 if (bestMine == null) {
                     bestMine = mine;
@@ -176,6 +208,24 @@ public class Miner extends MyRobot {
                     bestMine = mine;
                     bestDist = dist;
                 }
+            }
+            // get lowest rubble adjacent location, break ties with proximity TODO: consider if location is occupied
+            if (bestMine != null) {
+                MapLocation bestLoc = bestMine;
+                int bestRubble = rc.senseRubble(bestMine);
+                for (Direction dir : dirs) {
+                    MapLocation prospect = bestMine.add(dir);
+                    if (!rc.canSenseLocation(prospect)) continue;
+                    int rubble = rc.senseRubble(prospect);
+                    if (rubble < bestRubble) {
+                        bestRubble = rubble;
+                        bestLoc = prospect;
+                    }
+                    else if (rubble == bestRubble && myLoc.distanceSquaredTo(prospect) < myLoc.distanceSquaredTo(bestLoc)) {
+                        bestLoc = prospect;
+                    }
+                }
+                bestMine = bestLoc;
             }
         } catch (Throwable t) {
             t.printStackTrace();

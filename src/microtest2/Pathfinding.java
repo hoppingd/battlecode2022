@@ -1,4 +1,4 @@
-package microplayer;
+package microtest2;
 
 import battlecode.common.*;
 
@@ -31,15 +31,15 @@ public class Pathfinding {
 
     boolean[] impassable = null;
 
-    void setImpassable(boolean[] impassable){
+    void setImpassable(boolean[] impassable) {
         this.impassable = impassable;
     }
 
-    void initTurn(){
+    void initTurn() {
         impassable = new boolean[directions.length];
     }
 
-    boolean canMove(Direction dir){
+    boolean canMove(Direction dir) {
         if (!rc.canMove(dir)) return false;
         if (impassable[dir.ordinal()]) return false;
         return true;
@@ -49,26 +49,26 @@ public class Pathfinding {
         return bugNav.doMicro();
     }
 
-    Pathfinding(RobotController rc, Exploration explore){
+    Pathfinding(RobotController rc, Exploration explore) {
         this.rc = rc;
         this.explore = explore;
         myTeam = rc.getTeam();
         enemyTeam = myTeam.opponent();
     }
 
-    double getEstimation (MapLocation loc){
+    double getEstimation(MapLocation loc) {
         try {
             if (loc.distanceSquaredTo(target) == 0) return 0;
             int d = Util.distance(target, loc);
             double r = 10 + rc.senseRubble(loc);
-            return r + (d - 1)*avgRubble;
-        } catch (Throwable e){
+            return r + (d - 1) * avgRubble;
+        } catch (Throwable e) {
             e.printStackTrace();
         }
         return 1e9;
     }
 
-    public void move(MapLocation loc){
+    public void move(MapLocation loc) {
         if (rc.getMovementCooldownTurns() >= 1) return;
         target = loc;
 
@@ -80,7 +80,7 @@ public class Pathfinding {
 
     final double eps = 1e-5;
 
-    void greedyPath(){
+    void greedyPath() {
         try {
             MapLocation myLoc = rc.getLocation();
             Direction bestDir = null;
@@ -104,7 +104,7 @@ public class Pathfinding {
                 int newDist = newLoc.distanceSquaredTo(target);
 
                 double estimation = firstStep + getEstimation(newLoc);
-                if (bestDir == null || estimation < bestEstimation - eps || (Math.abs(estimation - bestEstimation) <= 2*eps && newDist < bestEstimationDist)) {
+                if (bestDir == null || estimation < bestEstimation - eps || (Math.abs(estimation - bestEstimation) <= 2 * eps && newDist < bestEstimationDist)) {
                     bestEstimation = estimation;
                     bestDir = dir;
                     bestEstimationDist = newDist;
@@ -114,12 +114,12 @@ public class Pathfinding {
                 avgRubble = avgR / contRubble;
             }
             if (bestDir != null) rc.move(bestDir);
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    boolean strictlyCloser(MapLocation newLoc, MapLocation oldLoc, MapLocation target){
+    boolean strictlyCloser(MapLocation newLoc, MapLocation oldLoc, MapLocation target) {
         int dOld = Util.distance(target, oldLoc), dNew = Util.distance(target, newLoc);
         if (dOld < dNew) return false;
         if (dNew < dOld) return true;
@@ -127,9 +127,10 @@ public class Pathfinding {
 
     }
 
-    class BugNav{
+    class BugNav {
 
-        BugNav(){}
+        BugNav() {
+        }
 
         final int INF = 1000000;
 
@@ -140,7 +141,7 @@ public class Pathfinding {
         HashSet<Integer> visited = new HashSet<>();
 
         boolean move() {
-            try{
+            try {
 
                 //different target? ==> previous data does not help!
                 if (prevTarget == null || target.distanceSquaredTo(prevTarget) > 0) resetPathfinding();
@@ -162,13 +163,13 @@ public class Pathfinding {
                 //If there's an obstacle I try to go around it [until I'm free] instead of going to the target directly
                 Direction dir = myLoc.directionTo(target);
                 if (lastObstacleFound != null) dir = myLoc.directionTo(lastObstacleFound);
-                if (canMove(dir)){
+                if (canMove(dir)) {
                     resetPathfinding();
                 }
 
                 //I rotate clockwise or counterclockwise (depends on 'rotateRight'). If I try to go out of the map I change the orientation
                 //Note that we have to try at most 16 times since we can switch orientation in the middle of the loop. (It can be done more efficiently)
-                for (int i = 8; i-- > 0;) {
+                for (int i = 8; i-- > 0; ) {
                     if (canMove(dir)) {
                         rc.move(dir);
                         return true;
@@ -182,20 +183,20 @@ public class Pathfinding {
                 }
 
                 if (canMove(dir)) rc.move(dir);
-            } catch (Exception e){
+            } catch (Exception e) {
                 e.printStackTrace();
             }
             return true;
         }
 
         //clear some of previous data
-        void resetPathfinding(){
+        void resetPathfinding() {
             lastObstacleFound = null;
             minDistToEnemy = INF;
             visited.clear();
         }
 
-        int getCode(){
+        int getCode() {
             int x = rc.getLocation().x;
             int y = rc.getLocation().y;
             Direction obstacleDir = rc.getLocation().directionTo(target);
@@ -226,7 +227,7 @@ public class Pathfinding {
                 if (enemies.length > 0) {
                     try {
                         //try attacking if fleeing all combat
-                        if(rc.isActionReady() && microInfo[bestIndex].enemyDPS == 0) {
+                        if (rc.isActionReady() && microInfo[bestIndex].enemyDPS == 0) {
                             RobotInfo[] enemiesToAttack = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
                             MapLocation bestLoc = null;
                             boolean attackerInRange = false;
@@ -259,8 +260,7 @@ public class Pathfinding {
                                     bestHealth = r.health;
                                     bestRubble = rubble;
                                     bestLoc = enemyLoc;
-                                }
-                                else if (r.health == bestHealth && rubble < bestRubble) {
+                                } else if (r.health == bestHealth && rubble < bestRubble) {
                                     bestRubble = rubble;
                                     bestLoc = enemyLoc;
                                 }
@@ -275,7 +275,7 @@ public class Pathfinding {
                         }
                         //System.err.println("microing to " + rc.getLocation().add(directions[bestIndex]));
                         rc.move(directions[bestIndex]);
-                    } catch (Throwable e){
+                    } catch (Throwable e) {
                         e.printStackTrace();
                     }
                     return true;
@@ -319,45 +319,36 @@ public class Pathfinding {
             }
 
             boolean isBetter(MicroInfo m) {
-                if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE) {
-                    double dpsDiff = enemyDPS - myDPS;
-                    double mdpsDiff = m.enemyDPS - m.myDPS;
-                    // bad attack
-                    if (dpsDiff > 0) {
-                        if (mdpsDiff < dpsDiff) return false;
-                        if (mdpsDiff > dpsDiff) return true;
-                        return minDistToEnemy >= m.minDistToEnemy;
-                    }
-                    // even attack
-                    if (dpsDiff == 0) {
-                        if (mdpsDiff > 0) return true;
-                        if (mdpsDiff < 0 && m.canAttack()) return false;
-                        if (!m.canAttack()) return false; // attack in even fights
-                        if (myDPS > m.myDPS) return true;
-                        if (myDPS < m.myDPS) return false;
-                        return minDistToEnemy >= m.minDistToEnemy;
-                    }
-                    // safe
-                    if (!canAttack()) {
-                        if (mdpsDiff > 0) return true;
-                        if (mdpsDiff <= 0 && m.canAttack()) return false;
-                        if (myDPS > m.myDPS) return true;
-                        if (myDPS < m.myDPS) return false;
-                        return minDistToEnemy <= m.minDistToEnemy;
-                    }
-                    // good attack
-                    if (mdpsDiff > dpsDiff || !m.canAttack()) return true;
+                double dpsDiff = enemyDPS - myDPS;
+                double mdpsDiff = m.enemyDPS - m.myDPS;
+                // bad attack
+                if (dpsDiff > 0) {
                     if (mdpsDiff < dpsDiff) return false;
+                    if (mdpsDiff > dpsDiff) return true;
+                    return minDistToEnemy >= m.minDistToEnemy;
+                }
+                // even attack
+                if (dpsDiff == 0) {
+                    if (mdpsDiff > 0) return true;
+                    if (mdpsDiff < 0 && m.canAttack()) return false;
+                    if (!m.canAttack()) return false; // attack in even fights
                     if (myDPS > m.myDPS) return true;
                     if (myDPS < m.myDPS) return false;
                     return minDistToEnemy >= m.minDistToEnemy;
                 }
-                // if health is low, will try to get out of combat
-                if (canAttack()) {
-                    if (!m.canAttack()) return false;
-                    return minDistToEnemy >= m.minDistToEnemy;
+                // safe
+                if (!canAttack()) {
+                    if (mdpsDiff > 0) return true;
+                    if (mdpsDiff <= 0 && m.canAttack()) return false;
+                    if (myDPS > m.myDPS) return true;
+                    if (myDPS < m.myDPS) return false;
+                    return minDistToEnemy <= m.minDistToEnemy;
                 }
-                if (m.canAttack()) return true;
+                // good attack
+                if (mdpsDiff > dpsDiff || !m.canAttack()) return true;
+                if (mdpsDiff < dpsDiff) return false;
+                if (myDPS > m.myDPS) return true;
+                if (myDPS < m.myDPS) return false;
                 return minDistToEnemy >= m.minDistToEnemy;
             }
         }

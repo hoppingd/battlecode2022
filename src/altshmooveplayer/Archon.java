@@ -1,4 +1,4 @@
-package microplayer;
+package altshmooveplayer;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
@@ -220,7 +220,7 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildMiner() {
-        //if (task == Communication.CRUNCH) return false; //crunch
+        if (task == Communication.CRUNCH) return false; //crunch
         // PHASE 1
         if (currRound < Communication.P2_START) {
             if (!arrived) {
@@ -260,7 +260,6 @@ public class Archon extends MyRobot {
         // PHASE 4
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.MINER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.MINER.buildCostLead && !comm.builderIsBuilt())) return false;
             if (comm.getSpawnCount() % 3 == 0) {
                 return true;
             }
@@ -287,8 +286,7 @@ public class Archon extends MyRobot {
         }
         // PHASE 4
         else {
-            if (comm.builderIsBuilt()) return false;
-            return true;
+            return false;
         }
     }
 
@@ -332,7 +330,6 @@ public class Archon extends MyRobot {
         // PHASE 4
         else {
             if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.builderIsBuilt())) return false;
             return true;
         }
     }
@@ -383,14 +380,13 @@ public class Archon extends MyRobot {
                         if (bestLoc == null) {
                             bestLoc = spawnLoc;
                         }
-                        else if (spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) { // TODO: nearest corner
+                        else if (spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) {
                             bestLoc = spawnLoc;
                         }
                     }
                 }
                 if (bestLoc != null) {
                     rc.buildRobot(RobotType.BUILDER, myLoc.directionTo(bestLoc));
-                    comm.setBuilderBuilt();
                     comm.incSpawnCounter();
                     builderCount++;
                     return true;
@@ -464,7 +460,7 @@ public class Archon extends MyRobot {
                 lowestHP = r.getHealth();
                 bestLoc = r.location;
             }
-            if (hp > lowestHP && hp < r.getType().getMaxHealth(r.getLevel())) {
+            if (hp < lowestHP && hp < r.getType().getMaxHealth(r.getLevel())) {
                 if (attackerInRange && !r.getType().canAttack()) break;
                 lowestHP = hp;
                 bestLoc = r.location;
