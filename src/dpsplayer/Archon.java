@@ -70,6 +70,8 @@ public class Archon extends MyRobot {
 
     int P1_MINERS_MODIFIER = 0;
 
+    boolean shouldBuildLab = false;
+
     public Archon(RobotController rc){
         super(rc);
         H = rc.getMapHeight();
@@ -99,6 +101,28 @@ public class Archon extends MyRobot {
         else if (currRound == birthday + 2) { // HQ is decided on 3rd round
             if (!comm.decideHQ()) comm.readHQloc();
             if (rc.getLocation().equals(comm.HQloc)) arrived = true;
+        }
+        shouldBuildLab = comm.getShouldBuildLab();
+        // SHOULD BUILD LAB
+        if (currRound > birthday + 2) {
+            if (!shouldBuildLab) {
+                if (currRound >= Communication.P4_START) {
+                    comm.setShouldBuildLab();
+                    shouldBuildLab = true;
+                }
+                else {
+                    try {
+                        MapLocation[] mines = rc.senseNearbyLocationsWithLead();
+                        if (task != 2 && mines.length >= 10) {
+                            comm.setShouldBuildLab();
+                            shouldBuildLab = true;
+                        }
+                    } catch (Throwable t) {
+                        t.printStackTrace();
+                    }
+                }
+            }
+
         }
         // CRUNCH TIME
         if (currRound >= CRUNCH_ROUND && rc.getArchonCount() < comm.numArchons) { // if we lost an archon, we need to try to get theirs
@@ -220,7 +244,10 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildMiner() {
-        //if (task == Communication.CRUNCH) return false; //crunch
+        if (currGold > RobotType.SAGE.buildCostGold) return false;
+        if (shouldBuildLab) {
+            if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.MINER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.MINER.buildCostLead && !comm.builderIsBuilt())) return false;
+        }
         // PHASE 1
         if (currRound < Communication.P2_START) {
             if (!arrived) {
@@ -259,8 +286,6 @@ public class Archon extends MyRobot {
         }
         // PHASE 4
         else {
-            if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.MINER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.MINER.buildCostLead && !comm.builderIsBuilt())) return false;
             if (comm.getSpawnCount() % 3 == 0) {
                 return true;
             }
@@ -269,7 +294,10 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildBuilder() {
-        //if (task == Communication.CRUNCH) return false; //crunch
+        if (currGold > RobotType.SAGE.buildCostGold) return false;
+        if (shouldBuildLab) {
+            if (!comm.builderIsBuilt()) return true;
+        }
         // PHASE 1
         if (currRound < Communication.P2_START) {
             if (arrived && builderCount < P1_BUILDERS && (mapLeadScore > Communication.HIGH_LEAD_THRESHOLD)) return true; // early towers
@@ -287,14 +315,15 @@ public class Archon extends MyRobot {
         }
         // PHASE 4
         else {
-            if (comm.builderIsBuilt()) return false;
-            return true;
+            return false;
         }
     }
 
     boolean shouldBuildSoldier() {
         if (currGold > RobotType.SAGE.buildCostGold) return false;
-        //if (task == 4) return true; //crunch
+        if (shouldBuildLab) {
+            if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.builderIsBuilt())) return false;
+        }
         // PHASE 1
         if (currRound < Communication.P2_START) {
             if (mapLeadScore < Communication.HIGH_LEAD_THRESHOLD) return true;
@@ -331,8 +360,6 @@ public class Archon extends MyRobot {
         }
         // PHASE 4
         else {
-            if (currGold > RobotType.SAGE.buildCostGold && task == 2) return false;
-            if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.builderIsBuilt())) return false;
             return true;
         }
     }
@@ -349,16 +376,46 @@ public class Archon extends MyRobot {
         if (currLead >= RobotType.MINER.buildCostLead && shouldBuildMiner()) {
             MapLocation closestMine = getClosestMine();
             MapLocation bestLoc = null;
+            int bestRubble = 10000;
             try {
-                // TODO: if there are no mines in proximity, should we consider spawn location?
                 for (Direction dir : spawnDirections) {
                     if (rc.canBuildRobot(RobotType.MINER, dir)) {
                         MapLocation spawnLoc = myLoc.add(dir);
+                        int rubble = rc.senseRubble(spawnLoc);
                         if (bestLoc == null) {
                             bestLoc = spawnLoc;
+                            bestRubble = rubble;
                         }
-                        else if (closestMine != null && spawnLoc.distanceSquaredTo(closestMine) < bestLoc.distanceSquaredTo(closestMine)) {
-                            bestLoc = spawnLoc;
+                        else if (closestMine != null) { // if mine in view, tiebreak with distance to that mine. if same distance, tiebreak with distance to center
+                            if (rubble < bestRubble) {
+                                bestLoc = spawnLoc;
+                                bestRubble = rubble;
+                            }
+                            else if (rubble == bestRubble) {
+                                int d1 = spawnLoc.distanceSquaredTo(closestMine);
+                                int d2 = bestLoc.distanceSquaredTo(closestMine);
+                                if (d1 < d2) {
+                                    bestLoc = spawnLoc;
+                                }
+                                else if (d1 == d2 && spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) {
+                                    bestLoc = spawnLoc;
+                                }
+                                // if everything is a tie, good enough
+                            }
+                        }
+                        else if (closestMine == null) { // if no mine in view, tiebreak with distance to mapcenter
+                            if (rubble < bestRubble) {
+                                bestLoc = spawnLoc;
+                                bestRubble = rubble;
+                            }
+                            else if (rubble == bestRubble) {
+                                int d1 = spawnLoc.distanceSquaredTo(mapCenter);
+                                int d2 = bestLoc.distanceSquaredTo(mapCenter);
+                                if (d1 < d2) {
+                                    bestLoc = spawnLoc;
+                                }
+                                // if everything is a tie, good enough
+                            }
                         }
                     }
                 }
@@ -372,9 +429,9 @@ public class Archon extends MyRobot {
                 t.printStackTrace();
             }
         }
-        // TODO: spawn toward best prospect?
         else if(currLead >= RobotType.BUILDER.buildCostLead && shouldBuildBuilder())
         {
+            MapLocation nearestCorner = getNearestCorner();
             MapLocation bestLoc = null;
             try {
                 for (Direction dir : spawnDirections) {
@@ -383,7 +440,7 @@ public class Archon extends MyRobot {
                         if (bestLoc == null) {
                             bestLoc = spawnLoc;
                         }
-                        else if (spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) { // TODO: nearest corner
+                        else if (spawnLoc.distanceSquaredTo(nearestCorner) < bestLoc.distanceSquaredTo(nearestCorner)) {
                             bestLoc = spawnLoc;
                         }
                     }
@@ -401,15 +458,24 @@ public class Archon extends MyRobot {
         }
         else if (currLead >= RobotType.SOLDIER.buildCostLead && shouldBuildSoldier()) {
             MapLocation bestLoc = null;
+            int bestRubble = 10000;
             try {
                 for (Direction dir : spawnDirections) {
                     if (rc.canBuildRobot(RobotType.SOLDIER, dir)) {
                         MapLocation spawnLoc = myLoc.add(dir);
+                        int rubble = rc.senseRubble(spawnLoc);
                         if (bestLoc == null) {
                             bestLoc = spawnLoc;
+                            bestRubble = rubble;
                         }
-                        else if (spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) {
-                            bestLoc = spawnLoc;
+                        else {
+                            if (rubble < bestRubble) {
+                                bestLoc = spawnLoc;
+                                bestRubble = rubble;
+                            }
+                            else if (rubble == bestRubble && spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) { // TODO: tiebreak with distance to nearest logged enemy?
+                                bestLoc = spawnLoc;
+                            }
                         }
                     }
                 }
@@ -425,15 +491,24 @@ public class Archon extends MyRobot {
         }
         else if (currGold >= RobotType.SAGE.buildCostGold && shouldBuildSage()) {
             MapLocation bestLoc = null;
+            int bestRubble = 10000;
             try {
                 for (Direction dir : spawnDirections) {
                     if (rc.canBuildRobot(RobotType.SAGE, dir)) {
                         MapLocation spawnLoc = myLoc.add(dir);
+                        int rubble = rc.senseRubble(spawnLoc);
                         if (bestLoc == null) {
                             bestLoc = spawnLoc;
+                            bestRubble = rubble;
                         }
-                        else if (spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) {
-                            bestLoc = spawnLoc;
+                        else {
+                            if (rubble < bestRubble) {
+                                bestLoc = spawnLoc;
+                                bestRubble = rubble;
+                            }
+                            else if (rubble == bestRubble && spawnLoc.distanceSquaredTo(mapCenter) < bestLoc.distanceSquaredTo(mapCenter)) { // TODO: tiebreak with distance to nearest logged enemy?
+                                bestLoc = spawnLoc;
+                            }
                         }
                     }
                 }
@@ -527,4 +602,32 @@ public class Archon extends MyRobot {
         }
     }
 
+    MapLocation getNearestCorner() {
+        int x;
+        int y;
+        int W1 = W - 1;
+        int H1 = H - 1;
+        if(W1 - comm.HQloc.x > comm.HQloc.x) {
+            x = 0;
+        }
+        else {
+            x = W1;
+        }
+        if(H1 - comm.HQloc.y > comm.HQloc.y) {
+            y = 0;
+        }
+        else {
+            y = H1;
+        }
+        MapLocation nearestCorner = new MapLocation(x,y);
+        int d1 = comm.HQloc.distanceSquaredTo(nearestCorner);
+        // if not near corner, build around HQ TODO: if close to wall, builder should build near wall, not HQ
+        if (comm.HQloc.distanceSquaredTo(new MapLocation(x, H1/2)) < d1) {
+            nearestCorner = new MapLocation(x, comm.HQloc.y);
+        }
+        else if (comm.HQloc.distanceSquaredTo(new MapLocation(W1/2, y)) < d1) {
+            nearestCorner = new MapLocation(comm.HQloc.x, y);
+        }
+        return nearestCorner;
+    }
 }

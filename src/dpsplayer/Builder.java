@@ -56,7 +56,6 @@ public class Builder extends MyRobot {
         }
         tryMove();
         tryDisintegrate();
-        tryRepairBuilding(); //for healing
     }
 
     // TODO: cleanup
@@ -91,8 +90,7 @@ public class Builder extends MyRobot {
 
     // TODO: disintegrate if crowded and been around long
     void tryDisintegrate() {
-        if ((LOW_LEAD_MAP && currRound < comm.P4_START)
-                || (currRound > comm.P4_START && watchRepairedCount > 0)) {
+        if (watchRepairedCount > 0) {
             MapLocation myLoc = rc.getLocation();
             try {
                 if (rc.senseLead(myLoc) == 0) {
@@ -106,35 +104,7 @@ public class Builder extends MyRobot {
 
     // TODO: should be way smarter with where we build watchtowers
     void tryBuild(){
-        if (HIGH_LEAD_MAP) { // we built a miner early, so must be high lead map. we'll defend with watchtowers
-            Direction bestDir = null;
-            int bestRubble = GameConstants.MAX_RUBBLE;
-            MapLocation myLoc = rc.getLocation();
-            try {
-                for (Direction dir : spawnDirections) {
-                    MapLocation prospect = myLoc.add(dir);
-                    int d1 = prospect.distanceSquaredTo(nearestCorner);
-                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H * W)) { //TODO: check if toeer is in unsafe location
-                        int r = rc.senseRubble(prospect);
-                        if (bestDir == null) {
-                            bestDir = dir;
-                            bestRubble = r;
-                        }
-                        else if (r < bestRubble) {
-                            bestDir = dir;
-                            bestRubble = r;
-                        }
-                    }
-                }
-                if (bestDir != null) {
-                    rc.buildRobot(RobotType.WATCHTOWER, bestDir);
-                    watchCount++;
-                }
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-        }
-        else if(!comm.labIsBuilt() && currRound > comm.P4_START) {
+        if(!comm.labIsBuilt()) {
             if (rc.getLocation().isAdjacentTo(nearestCorner) && rc.getTeamLeadAmount(myTeam) > RobotType.LABORATORY.buildCostLead) {
                 MapLocation bestLoc = null;
                 int bestRubble = 10000;
@@ -175,133 +145,52 @@ public class Builder extends MyRobot {
                 }
             }
         }
-        /*else if(watchCount < 1 && rc.getTeamLeadAmount(myTeam) > RobotType.WATCHTOWER.buildCostLead && currRound > comm.P4_START)
-        {
-            Direction bestDir = null;
-            int bestRubble = GameConstants.MAX_RUBBLE;
-            MapLocation myLoc = rc.getLocation();
-            try {
-                for (Direction dir : spawnDirections) {
-                    MapLocation prospect = myLoc.add(dir);
-                    if (rc.canBuildRobot(RobotType.WATCHTOWER, dir) && validTowerLoc(prospect)) { //TODO: check if toeer is in unsafe location
-                        int r = rc.senseRubble(prospect);
-                        if (bestDir == null) {
-                            bestDir = dir;
-                            bestRubble = r;
-                        }
-                        else if (r < bestRubble) {
-                            bestDir = dir;
-                            bestRubble = r;
-                        }
-                    }
-                }
-                if (bestDir != null) {
-                    rc.buildRobot(RobotType.WATCHTOWER, bestDir);
-                    watchCount++;
-                }
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-        }*/
     }
 
-    // TODO: disintegrate if not emergency and havent built in x turns
     void tryMove(){
         if (!rc.isMovementReady()) return;
         MapLocation target = null;
-        if (task !=2 && ((LOW_LEAD_MAP && currRound < comm.P4_START) || (currRound > comm.P4_START && watchRepairedCount > 0))) {
+
+        if (watchRepairedCount == 0) {
+            target = getLabBuildLoc();
+            //System.err.println("labBuildLoc: " + target);
+        }
+
+        if (target == null) {
             target = getMineProspect();
         }
 
-        if (target == null && !comm.labIsBuilt() && currRound > comm.P4_START) {
-            if (!rc.getLocation().isAdjacentTo(nearestCorner)) target = nearestCorner;
-        }
-        if (target == null) target = getHurtRobot();
-        //check to see if in danger
         if (target != null) {
-            MapLocation myLoc = rc.getLocation();
             bfs.move(target);
-            if (myLoc == rc.getLocation()) { // avoiding intersection bug
-                bfs.path.move(target);
-            }
         }
         else {
-            if (HIGH_LEAD_MAP) {
-                bfs.move(getEarlyTowerLoc());
-            }
-            else {
-                bfs.move(explore.getExploreTarget()); // TODO: if early builder be smarter with movement and finding ideal tower locations
-            }
+            bfs.move(explore.getExploreTarget());
         }
     }
 
-    void tryRepairBuilding() {
-        RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
-        MapLocation bestRepair = null;
-        int bestHealth = 0;
-        for (RobotInfo r : allies) {
-            MapLocation allyLoc = r.getLocation();
-            if (rc.canRepair(allyLoc)){
-                int health = r.getHealth();
-                if (health < r.getType().getMaxHealth(r.level) && health > bestHealth) {
-                    bestHealth = health;
-                    bestRepair = allyLoc;
-                }
-            }
-        }
+    // TODO: lowest rubble adjacent to corner
+    MapLocation getLabBuildLoc() {
+        MapLocation target = nearestCorner;
+        int bestRubble = 10000;
         try {
-            if (bestRepair != null) rc.repair(bestRepair);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-    }
-
-    //TODO: use directions to save bytecode
-    MapLocation getHurtRobot() {
-        RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
-        MapLocation bestRepair = null;
-        int bestHealth = 10000;
-        for (RobotInfo r : allies){
-            MapLocation allyLoc = r.getLocation();
-            int health = r.getHealth();
-            if (r.getMode() == RobotMode.PROTOTYPE) return r.location; // TODO: IMPROVE
-            if (r.getHealth() < r.getType().health && health < bestHealth) {
-                bestHealth = health;
-                bestRepair = allyLoc;
-            }
-        }
-        try {
-            if (bestRepair != null) {
-                MapLocation bestLoc = bestRepair;
-                int bestRubble = 10000;
-                for (Direction dir : spawnDirections) {
-                    MapLocation prospect = bestLoc.add(dir);
-                    if (!rc.canSenseLocation(prospect)) continue;
-                    int rubble = rc.senseRubble(prospect);
-                    if (rubble < bestRubble) {
-                        bestRubble = rubble;
-                        bestLoc = prospect;
-                    }
-                    else if (rubble == bestRubble && rc.getLocation().distanceSquaredTo(prospect) < rc.getLocation().distanceSquaredTo(bestLoc)) {
-                        bestLoc = prospect;
-                    }
+            MapLocation[] cells = rc.getAllLocationsWithinRadiusSquared(nearestCorner, 2);
+            for (MapLocation cell : cells) {
+                if (!rc.canSenseLocation(cell)) continue;
+                if (cell.equals(nearestCorner)) continue;
+                if (rc.isLocationOccupied(cell) && !rc.getLocation().equals(cell)) continue;
+                int rubble = rc.senseRubble(cell);
+                if (rubble < bestRubble) {
+                    target = cell;
+                    bestRubble = rubble;
                 }
-                bestRepair = bestLoc;
+                else if (rubble == bestRubble && rc.getLocation().distanceSquaredTo(cell) < rc.getLocation().distanceSquaredTo(target)) {
+                    target = cell;
+                }
             }
         } catch (Throwable t) {
             t.printStackTrace();
         }
-
-        return bestRepair;
-    }
-
-    boolean validTowerLoc(MapLocation loc) {
-        RobotInfo[] robots = rc.senseNearbyRobots(loc,1, myTeam);
-        for (RobotInfo r : robots) {
-            if (r.getType() == RobotType.WATCHTOWER && r.getMode() == RobotMode.TURRET) return false;
-        }
-        int d1 = loc.distanceSquaredTo(nearestCorner);
-        return d1 > comm.HQloc.distanceSquaredTo(nearestCorner) && d1 > Math.sqrt(H*W);
+        return target;
     }
 
     MapLocation getMineProspect() {
@@ -314,28 +203,6 @@ public class Builder extends MyRobot {
                 if (rc.senseLead(cell) > 0 || cell.distanceSquaredTo(nearestCorner) > Math.sqrt(Math.sqrt(H*W))) break;
                 int dist = myLoc.distanceSquaredTo(cell);
                 if (dist < bestDist) { // closest spot with no lead and not too close to corner
-                    bestDist = dist;
-                    target = cell;
-                }
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        return target;
-    }
-
-    MapLocation getEarlyTowerLoc() {
-        MapLocation myLoc = rc.getLocation();
-        MapLocation target = null;
-        int d2 = comm.HQloc.distanceSquaredTo(nearestCorner);
-        double d3 = Math.sqrt(H*W);
-        int bestDist = 10000;
-        try {
-            MapLocation cells[] = rc.getAllLocationsWithinRadiusSquared(myLoc, rc.getType().visionRadiusSquared);
-            for (MapLocation cell : cells){
-                int dist = cell.distanceSquaredTo(comm.HQloc);
-                int d1 = cell.distanceSquaredTo(nearestCorner);
-                if (dist < bestDist && d1 > d2 && d1 > d3) { // validtowerloc disregarding spacing. we need to live!
                     bestDist = dist;
                     target = cell;
                 }

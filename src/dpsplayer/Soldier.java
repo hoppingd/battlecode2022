@@ -256,6 +256,7 @@ public class Soldier extends MyRobot {
                     bfs.move(target);
                 }
                 senseEnemyArchons();
+                break;
             }
             default:
         }

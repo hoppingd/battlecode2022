@@ -2,6 +2,7 @@ package dpsplayer;
 
 import battlecode.common.*;
 
+import java.awt.*;
 import java.util.HashSet;
 
 public class Pathfinding {
@@ -220,7 +221,11 @@ public class Pathfinding {
             }
             // doMicro
             MicroInfo[] microInfo = new MicroInfo[9];
-            for (int i = 0; i < 9; i++) microInfo[i] = new MicroInfo(rc.getLocation().add(directions[i]));
+            int minRubble = INF;
+            for (int i = 0; i < 9; i++) {
+                microInfo[i] = new MicroInfo(rc.getLocation().add(directions[i]));
+                if (microInfo[i].myRubble < minRubble) minRubble = microInfo[i].myRubble;
+            }
 
             RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
 
@@ -232,64 +237,145 @@ public class Pathfinding {
 
             int bestIndex = 8;
             for (int i = 7; i >= 0; i--) {
-                if (!rc.canMove(directions[i])) continue; //TODO: seperate if
+                if (!rc.canMove(directions[i])) continue;
+                //if (microInfo[i].myRubble - 20 > minRubble) continue; // avoid significantly higher rubble
                 if (!microInfo[bestIndex].isBetter(microInfo[i])) {
                     bestIndex = i;
-                    System.err.println("thought " + microInfo[i].loc + " was better");
+                    //System.err.println("thought " + microInfo[i].loc + " was better");
                 }
             }
 
             if (enemies.length > 0) {
                 try {
                     //try attacking if fleeing all combat
-                    if(rc.isActionReady() && microInfo[bestIndex].enemyDPS < eps) { // TODO: improve?
-                        RobotInfo[] enemiesToAttack = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
-                        MapLocation bestLoc = null;
-                        boolean attackerInRange = false;
-                        // don't attack miners if soldiers in view
-                        for (RobotInfo r : enemies) {
-                            if (r.type.canAttack()) {
-                                attackerInRange = true;
+                    if(rc.isActionReady() && microInfo[bestIndex].enemyDPS == 0) { // TODO: improve?
+                        if (rc.getType() == RobotType.SOLDIER) {
+                            RobotInfo[] enemiesToAttack = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
+                            MapLocation bestLoc = null;
+                            boolean attackerInRange = false;
+                            // don't attack miners if soldiers in view
+                            for (RobotInfo r : enemies) {
+                                if (r.type.canAttack()) {
+                                    attackerInRange = true;
+                                }
                             }
-                        }
-                        int bestHealth = 10000;
-                        int bestRubble = GameConstants.MAX_RUBBLE;
-                        for (RobotInfo r : enemiesToAttack) {
-                            MapLocation enemyLoc = r.getLocation();
-                            boolean isAttacker = r.type.canAttack();
-                            // if there are attackers, ignore all non-attackers and reset variables
-                            if (!isAttacker && attackerInRange) continue;
-                            int rubble = GameConstants.MAX_RUBBLE;
+                            int bestHealth = 10000;
+                            int bestRubble = GameConstants.MAX_RUBBLE;
+                            for (RobotInfo r : enemiesToAttack) {
+                                MapLocation enemyLoc = r.getLocation();
+                                boolean isAttacker = r.type.canAttack();
+                                // if there are attackers, ignore all non-attackers and reset variables
+                                if (!isAttacker && attackerInRange) continue;
+                                int rubble = GameConstants.MAX_RUBBLE;
+                                try {
+                                    rubble = rc.senseRubble(r.location);
+                                } catch (Throwable t) {
+                                    t.printStackTrace();
+                                }
+                                if (isAttacker && !attackerInRange) {
+                                    bestHealth = 10000;
+                                    bestRubble = rubble;
+                                    attackerInRange = true;
+                                }
+                                // shoot lowest health with rubble as tiebreaker
+                                if (r.health < bestHealth) {
+                                    bestHealth = r.health;
+                                    bestRubble = rubble;
+                                    bestLoc = enemyLoc;
+                                }
+                                else if (r.health == bestHealth && rubble < bestRubble) {
+                                    bestRubble = rubble;
+                                    bestLoc = enemyLoc;
+                                }
+                            }
                             try {
-                                rubble = rc.senseRubble(r.location);
+                                if (bestLoc != null) {
+                                    rc.attack(bestLoc);
+                                }
                             } catch (Throwable t) {
                                 t.printStackTrace();
                             }
-                            if (isAttacker && !attackerInRange) {
-                                bestHealth = 10000;
-                                bestRubble = rubble;
-                                attackerInRange = true;
-                            }
-                            // shoot lowest health with rubble as tiebreaker
-                            if (r.health < bestHealth) {
-                                bestHealth = r.health;
-                                bestRubble = rubble;
-                                bestLoc = enemyLoc;
-                            }
-                            else if (r.health == bestHealth && rubble < bestRubble) {
-                                bestRubble = rubble;
-                                bestLoc = enemyLoc;
-                            }
                         }
-                        try {
-                            if (bestLoc != null) {
-                                rc.attack(bestLoc);
+                        else if (rc.getType() == RobotType.SAGE) {
+                            RobotInfo[] enemiesToAttack = rc.senseNearbyRobots(RobotType.SAGE.actionRadiusSquared, enemyTeam);
+                            MapLocation bestLoc = null;
+                            boolean attackerInRange = false;
+                            // don't attack miners if soldiers in view
+                            for (RobotInfo r : enemies) {
+                                if (r.type.canAttack()) {
+                                    comm.writeEnemyToLog(r.location);
+                                    attackerInRange = true;
+                                    break;
+                                }
                             }
-                        } catch (Throwable t) {
-                            t.printStackTrace();
+                            int bestHealth = 10000;
+                            int bestRubble = GameConstants.MAX_RUBBLE;
+                            boolean canKill = false;
+                            int chargeKills = 0;
+                            for (RobotInfo r : enemiesToAttack) {
+                                MapLocation enemyLoc = r.getLocation();
+                                boolean isAttacker = r.type.canAttack();
+                                // if there are attackers, ignore all non-attackers and reset variables
+                                if (!isAttacker && attackerInRange) continue;
+                                int rubble = GameConstants.MAX_RUBBLE;
+                                try {
+                                    rubble = rc.senseRubble(r.location);
+                                } catch (Throwable t) {
+                                    t.printStackTrace();
+                                }
+                                if (isAttacker) {
+                                    if (!attackerInRange) {
+                                        bestHealth = 10000;
+                                        bestRubble = rubble;
+                                        attackerInRange = true;
+                                        canKill = false;
+                                    }
+                                    if (r.getHealth() <= r.getType().getMaxHealth(r.getLevel()) * AnomalyType.CHARGE.sagePercentage) chargeKills++;
+                                }
+                                // pick target
+                                if (!canKill && r.getHealth() <= rc.getType().damage) canKill = true;
+                                if (canKill) {
+                                    // shoot lowest health with rubble as tiebreaker
+                                    if (r.getHealth() <= rc.getType().damage && r.getHealth() > bestHealth) {
+                                        bestHealth = r.getHealth();
+                                        bestRubble = rubble;
+                                        bestLoc = enemyLoc;
+                                    }
+                                    else if (r.getHealth() == bestHealth && rubble < bestRubble) {
+                                        bestRubble = rubble;
+                                        bestLoc = enemyLoc;
+                                    }
+                                }
+                                else {
+                                    if (r.getHealth() < bestHealth) {
+                                        bestHealth = r.getHealth();
+                                        bestRubble = rubble;
+                                        bestLoc = enemyLoc;
+                                    }
+                                    else if (r.getHealth() == bestHealth && rubble < bestRubble) {
+                                        bestRubble = rubble;
+                                        bestLoc = enemyLoc;
+                                    }
+                                }
+                            }
+                            try {
+                                if (bestLoc != null) {
+                                    if (chargeKills > 3) {
+                                        rc.envision(AnomalyType.CHARGE);
+                                    }
+                                    else if (rc.senseRobotAtLocation(bestLoc).getType() == RobotType.ARCHON) {
+                                        rc.envision(AnomalyType.FURY);
+                                    }
+                                    else {
+                                        rc.attack(bestLoc);
+                                    }
+                                }
+                            } catch (Throwable t) {
+                                t.printStackTrace();
+                            }
                         }
                     }
-                    System.err.println("microing to " + rc.getLocation().add(directions[bestIndex]));
+                    //System.err.println("microing to " + rc.getLocation().add(directions[bestIndex]));
                     rc.setIndicatorString("doMicro");
                     if (directions[bestIndex] == Direction.CENTER) return true;
                     rc.move(directions[bestIndex]);
@@ -302,17 +388,18 @@ public class Pathfinding {
         }
 
         class MicroInfo {
-            double enemyDPS = INF;
+            long enemyDPS = INF;
             int minDistToEnemy = INF;
-            double myDPS = 0;
+            long myDPS = 0;
+            int myRubble = INF;
             MapLocation loc;
 
             public MicroInfo(MapLocation loc) {
                 this.loc = loc;
                 try {
                     if (rc.canSenseLocation(loc)) {
-                        int r = rc.senseRubble(loc);
-                        myDPS = rc.getType().damage / (rc.getType().actionCooldown * (1+r/10.0));
+                        myRubble = rc.senseRubble(loc);
+                        myDPS = Math.round(1000*rc.getType().damage / (rc.getType().actionCooldown * (1+myRubble/10.0)));
                         enemyDPS = 0;
                     }
                 } catch (Throwable e) {
@@ -329,7 +416,9 @@ public class Pathfinding {
                     } catch (Throwable e) {
                         e.printStackTrace();
                     }
-                    enemyDPS += robot.getType().damage / (robot.getType().actionCooldown/10.0 * (1+r/10.0));
+                    int damage = robot.getType().damage;
+                    if (robot.getMode() == RobotMode.PROTOTYPE) damage = 0; // watchtower edge case
+                    enemyDPS += Math.round(1000*damage / (robot.getType().actionCooldown * (1+r/10.0)));
                 }
                 if (d < minDistToEnemy) minDistToEnemy = d; // TODO: improve?
             }
@@ -341,11 +430,98 @@ public class Pathfinding {
             //TODO: improve
             boolean isBetter(MicroInfo m) {
                 // never move to significantly higher rubble
+                long dpsDiff = myDPS - enemyDPS;
+                long mdpsDiff = m.myDPS - m.enemyDPS;
                 if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE) {
-                    if (myDPS - enemyDPS > eps) { // winning fight
-                        if ()
+                    //winning fight or safe location
+                    if (dpsDiff > 0) {
+                        if (dpsDiff > mdpsDiff) { // more winning / lower rubble
+                            if (enemyDPS != 0) return true; // is a fight
+                            if (m.enemyDPS != 0) { // not a fight, and m is a fight
+                                if (mdpsDiff >= 0) return false; // m is a winning fight
+                                return true; // is not a fight and m is a losing fight
+                            }
+                            // both locations have no enemies,
+                            if (canAttack()) {
+                                if (!m.canAttack()) return true; // cant attack non offensive unit from m
+                                if (myDPS > m.myDPS) return true; // m has higher rubble
+                                if (myDPS < m.myDPS) return false; // m has lower rubble
+                                return minDistToEnemy >= m.minDistToEnemy; // max mindist
+                            }
+                            if (m.canAttack()) return false; // can attack non offensive unit from m
+                            if (myDPS > m.myDPS) return true; // m has higher rubble
+                            if (myDPS < m.myDPS) return false; // m has lower rubble
+                            return minDistToEnemy <= m.minDistToEnemy; // minimize mindist
+                        }
+                        else if (dpsDiff == mdpsDiff) {
+                            if (enemyDPS != 0) { // is a fight
+                                if (m.enemyDPS == 0) return true; // m is not a fight
+                                //both locations have enemies
+                                if (myDPS > m.myDPS) return true; // m has higher rubble
+                                if (myDPS < m.myDPS) return false; // m has lower rubble
+                                return minDistToEnemy >= m.minDistToEnemy; // max mindist
+                            }
+                            if (m.enemyDPS != 0) return false; // m is a fight
+                            // both locations have no enemies
+                            if (canAttack()) {
+                                if (!m.canAttack()) return true; // cant attack non offensive unit from m
+                                return minDistToEnemy >= m.minDistToEnemy; // max mindist
+                            }
+                            if (m.canAttack()) return false; // can attack non offensive unit from m
+                            return minDistToEnemy <= m.minDistToEnemy; // minimize mindist
+                        }
+                        else {
+                            if (enemyDPS != 0) { // is a fight
+                                if (m.enemyDPS == 0) return true; // m is not a fight
+                                //both locations have enemies, but m has a better combat score
+                                return false;
+                            }
+                            // m is either a fight, or both locations have no enemies, but m has lower rubble
+                            return false;
+                        }
+                    }
+                    // even fight
+                    else if (dpsDiff == 0) {
+                        if (dpsDiff > mdpsDiff) { // better combat score
+                            return true;
+                        }
+                        else if (dpsDiff == mdpsDiff) { // both are even fights
+                            if (myDPS > m.myDPS) return true; // m has higher rubble
+                            if (myDPS < m.myDPS) return false; // m has lower rubble
+                            return minDistToEnemy >= m.minDistToEnemy; // max mindist
+                        }
+                        else { // worse combat score
+                            if (m.enemyDPS == 0) return true; // m is not a fight
+                            // m is a fight, and has a better combat score
+                            return false;
+                        }
+                    }
+                    // losing fight
+                    else {
+                        if (dpsDiff > mdpsDiff) {
+                            return true; // less losing than m
+                        }
+                        else if (dpsDiff == mdpsDiff) {
+                            if (myDPS > m.myDPS) return true; // m has higher rubble
+                            if (myDPS < m.myDPS) return false; // m has lower rubble
+                            return minDistToEnemy >= m.minDistToEnemy; // max mindist
+                        }
+                        else {
+                            return false;
+                        }
                     }
                 }
+                // if health is low, will try to get out of combat
+                if (enemyDPS != 0) {
+                    if (m.enemyDPS == 0) return false;
+                    if (myDPS > m.myDPS) return true;
+                    if (myDPS < m.myDPS) return false;
+                    return minDistToEnemy >= m.minDistToEnemy;
+                }
+                if (m.enemyDPS != 0) return true;
+                if (myDPS > m.myDPS) return true;
+                if (myDPS < m.myDPS) return false;
+                return minDistToEnemy >= m.minDistToEnemy;
             }
         }
     }

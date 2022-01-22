@@ -10,9 +10,9 @@
 // [9] EnemyArchon 3: ARCHON_SET yyyy yyxx xxxx
 // [10] EnemyArchon 4: ARCHON_SET yyyy yyxx xxxx
 // [11] MinerCode: 0|1
-// [12] FREE
-// [13] FREE
-// [14] FREE
+// [12] builderIsBuilt: 0|1
+// [13] labIsBuilt: 0|1
+// [14] shouldBuildLab: 0|1
 // [15] FREE
 // [16] Emergency location: yyyy yyxx xxxx
 // [17] EnemyArchonID: ID
@@ -465,7 +465,7 @@ public class Communication {
     boolean labIsBuilt() {
         boolean isBuilt = false;
         try {
-            isBuilt = rc.readSharedArray(11) == 1;
+            isBuilt = rc.readSharedArray(13) == 1;
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -474,7 +474,7 @@ public class Communication {
 
     void setLabBuilt() {
         try {
-            rc.writeSharedArray(11, 1);
+            rc.writeSharedArray(13, 1);
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -493,6 +493,24 @@ public class Communication {
     void setBuilderBuilt() {
         try {
             rc.writeSharedArray(12, 1);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    boolean getShouldBuildLab() {
+        boolean isBuilt = false;
+        try {
+            isBuilt = rc.readSharedArray(14) == 1;
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+        return isBuilt;
+    }
+
+    void setShouldBuildLab() {
+        try {
+            rc.writeSharedArray(14, 1);
         } catch (Throwable t) {
             t.printStackTrace();
         }

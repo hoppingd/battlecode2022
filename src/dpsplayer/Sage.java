@@ -44,8 +44,12 @@ public class Sage extends MyRobot {
     }
 
     public void play() {
+        target = null;
         task = comm.getTask();
-        nearestLoggedEnemy = comm.getLoggedEnemies();
+        MapLocation newNearest = comm.getLoggedEnemies();
+        if (newNearest != null) {
+            nearestLoggedEnemy = newNearest;
+        }
         comm.readHQloc();
         if (rc.getHealth() == rc.getType().getMaxHealth(rc.getLevel())) {
             healing = false;
@@ -72,6 +76,8 @@ public class Sage extends MyRobot {
         }
         int bestHealth = 10000;
         int bestRubble = GameConstants.MAX_RUBBLE;
+        boolean canKill = false;
+        int chargeKills = 0;
         for (RobotInfo r : enemies) {
             MapLocation enemyLoc = r.getLocation();
             boolean isAttacker = r.type.canAttack();
@@ -83,25 +89,52 @@ public class Sage extends MyRobot {
             } catch (Throwable t) {
                 t.printStackTrace();
             }
-            if (isAttacker && !attackerInRange) {
-                bestHealth = 10000;
-                bestRubble = rubble;
-                attackerInRange = true;
+            if (isAttacker) {
+                if (!attackerInRange) {
+                    bestHealth = 10000;
+                    bestRubble = rubble;
+                    attackerInRange = true;
+                    canKill = false;
+                }
+                if (r.getHealth() <= r.getType().getMaxHealth(r.getLevel()) * AnomalyType.CHARGE.sagePercentage) chargeKills++;
             }
-            // shoot lowest health with rubble as tiebreaker
-            if (r.health < bestHealth) {
-                bestHealth = r.health;
-                bestRubble = rubble;
-                bestLoc = enemyLoc;
+            // pick target
+            if (!canKill && r.getHealth() <= rc.getType().damage) canKill = true;
+            if (canKill) {
+                // shoot lowest health with rubble as tiebreaker
+                if (r.getHealth() <= rc.getType().damage && r.getHealth() > bestHealth) {
+                    bestHealth = r.getHealth();
+                    bestRubble = rubble;
+                    bestLoc = enemyLoc;
+                }
+                else if (r.getHealth() == bestHealth && rubble < bestRubble) {
+                    bestRubble = rubble;
+                    bestLoc = enemyLoc;
+                }
             }
-            else if (r.health == bestHealth && rubble < bestRubble) {
-                bestRubble = rubble;
-                bestLoc = enemyLoc;
+            else {
+                if (r.getHealth() < bestHealth) {
+                    bestHealth = r.getHealth();
+                    bestRubble = rubble;
+                    bestLoc = enemyLoc;
+                }
+                else if (r.getHealth() == bestHealth && rubble < bestRubble) {
+                    bestRubble = rubble;
+                    bestLoc = enemyLoc;
+                }
             }
         }
         try {
             if (bestLoc != null) {
-                rc.attack(bestLoc);
+                if (chargeKills > 3) {
+                    rc.envision(AnomalyType.CHARGE);
+                }
+                else if (rc.senseRobotAtLocation(bestLoc).getType() == RobotType.ARCHON) {
+                    rc.envision(AnomalyType.FURY);
+                }
+                else {
+                    rc.attack(bestLoc);
+                }
             }
         } catch (Throwable t) {
             t.printStackTrace();
@@ -110,6 +143,7 @@ public class Sage extends MyRobot {
 
     // TODO: cleanup
     void tryMove(){
+        rc.setIndicatorString("tryMove");
         if (!rc.isMovementReady()) return;
         if (rc.getRoundNum() == birthday) {
             task = comm.getTask();
@@ -169,7 +203,36 @@ public class Sage extends MyRobot {
                 break;
             }
             case 4: { // crunch TODO: improve. get lowest index or nearest non null archon location. bug when archon is destroyed but not crunching.
-                task = comm.getTask();
+                // heal
+                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SAGE.visionRadiusSquared, enemyTeam);
+                boolean attackerInRange = false;
+                for (RobotInfo r : nearbyEnemies) {
+                    if (r.type.canAttack()) {
+                        attackerInRange = true;
+                        break;
+                    }
+                }
+                if (!attackerInRange) {
+                    if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE && !healing) {
+                        // do nothing
+                    }
+                    else {
+                        if (!healing) healing = true;
+                        if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
+                            //System.err.println("healing...");
+                            target = rc.getLocation();
+                        }
+                        else {
+                            target = comm.HQloc;
+                            //System.err.println("retreating...");
+                        }
+                    }
+                }
+                if (target != null) {
+                    bfs.move(target);
+                    return;
+                }
+                // crunch
                 comm.readEnemyArchonLocations();
                 int crunchIdx = comm.getCrunchIdx();
                 if (comm.enemyArchons[crunchIdx] != null) {
@@ -197,6 +260,7 @@ public class Sage extends MyRobot {
                     bfs.move(target);
                 }
                 senseEnemyArchons();
+                break;
             }
             default:
         }
