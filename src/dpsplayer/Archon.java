@@ -38,6 +38,7 @@ public class Archon extends MyRobot {
     static final int P2_BUILDERS = 10;
     static final int CRUNCH_ROUND = 1500;
     static final int MIN_LEAD_TO_MINE = 6;
+    static final int MINES_TO_BUILD_LAB = 6;
 
     int H, W;
     Team myTeam, enemyTeam;
@@ -113,7 +114,7 @@ public class Archon extends MyRobot {
                 else {
                     try {
                         MapLocation[] mines = rc.senseNearbyLocationsWithLead();
-                        if (task != 2 && mines.length >= 10) {
+                        if (task != 2 && mines.length >= MINES_TO_BUILD_LAB) {
                             comm.setShouldBuildLab();
                             shouldBuildLab = true;
                         }
