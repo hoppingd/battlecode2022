@@ -1,4 +1,4 @@
-package microplayer;
+package fixedplayer;
 
 import battlecode.common.*;
 

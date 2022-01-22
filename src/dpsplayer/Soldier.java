@@ -1,4 +1,4 @@
-package microplayer;
+package dpsplayer;
 
 import battlecode.common.*;
 
