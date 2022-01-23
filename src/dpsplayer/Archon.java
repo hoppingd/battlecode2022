@@ -38,7 +38,7 @@ public class Archon extends MyRobot {
     static final int P2_BUILDERS = 10;
     static final int CRUNCH_ROUND = 1500;
     static final int MIN_LEAD_TO_MINE = 6;
-    static final int MINES_TO_BUILD_LAB = 6;
+    static final int MINES_TO_BUILD_LAB = 5;
 
     int H, W;
     Team myTeam, enemyTeam;
