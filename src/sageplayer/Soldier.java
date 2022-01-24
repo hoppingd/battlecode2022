@@ -30,6 +30,7 @@ public class Soldier extends MyRobot {
     MapLocation nearestLoggedEnemy;
     boolean healing = false;
     int turnsHealing = 0;
+    RobotInfo[] nearbyEnemies;
 
     public Soldier(RobotController rc){
         super(rc);
@@ -41,6 +42,7 @@ public class Soldier extends MyRobot {
         comm.readHQloc();
         nearestCorner = getNearestCorner();
         mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
+        nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
     }
 
     public void play() {
@@ -66,13 +68,13 @@ public class Soldier extends MyRobot {
 
     //TODO: prioritize builders over miners
     void tryAttack(){
+        nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         if (!rc.isActionReady()) return;
-        //RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
         boolean attackerInRange = false;
         // don't attack miners if soldiers in view
-        for (RobotInfo r : enemies) {
+        for (RobotInfo r : nearbyEnemies) {
             if (r.type.canAttack()) {
                 comm.writeEnemyToLog(r.location);
                 attackerInRange = true;
@@ -155,34 +157,24 @@ public class Soldier extends MyRobot {
                 break;
             }
             case 3: { // explore
-                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
-                boolean attackerInRange = false;
-                for (RobotInfo r : nearbyEnemies) {
-                    if (r.type.canAttack()) {
-                        attackerInRange = true;
-                        break;
-                    }
+                if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE && !healing) {
+                    target = nearestLoggedEnemy;
                 }
-                if (!attackerInRange) {
-                    if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE && !healing) {
-                        target = nearestLoggedEnemy;
-                    }
-                    else {
-                        if (!healing) healing = true;
-                        if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
-                            //System.err.println("healing...");
-                            turnsHealing++;
-                            if (turnsHealing >= MAX_TURNS_HEALING) {
-                                target = getMineProspect();
-                            }
-                            else {
-                                target = rc.getLocation();
-                            }
+                else {
+                    if (!healing) healing = true;
+                    if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
+                        //System.err.println("healing...");
+                        turnsHealing++;
+                        if (turnsHealing >= MAX_TURNS_HEALING) {
+                            target = getMineProspect();
                         }
                         else {
-                            target = comm.HQloc;
-                            //System.err.println("retreating...");
+                            target = rc.getLocation();
                         }
+                    }
+                    else {
+                        target = comm.HQloc;
+                        //System.err.println("retreating...");
                     }
                 }
                 if (target == null) {
@@ -194,34 +186,24 @@ public class Soldier extends MyRobot {
             }
             case 4: { // crunch TODO: improve. get lowest index or nearest non null archon location. bug when archon is destroyed but not crunching.
                 // heal
-                RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
-                boolean attackerInRange = false;
-                for (RobotInfo r : nearbyEnemies) {
-                    if (r.type.canAttack()) {
-                        attackerInRange = true;
-                        break;
-                    }
+                if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE && !healing) {
+                    // do nothing
                 }
-                if (!attackerInRange) {
-                    if (rc.getHealth() >= MIN_HEALTH_TO_REINFORCE && !healing) {
-                        // do nothing
-                    }
-                    else {
-                        if (!healing) healing = true;
-                        if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
-                            //System.err.println("healing...");
-                            turnsHealing++;
-                            if (turnsHealing >= MAX_TURNS_HEALING) {
-                                target = getMineProspect();
-                            }
-                            else {
-                                target = rc.getLocation();
-                            }
+                else {
+                    if (!healing) healing = true;
+                    if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
+                        //System.err.println("healing...");
+                        turnsHealing++;
+                        if (turnsHealing >= MAX_TURNS_HEALING) {
+                            target = getMineProspect();
                         }
                         else {
-                            target = comm.HQloc;
-                            //System.err.println("retreating...");
+                            target = rc.getLocation();
                         }
+                    }
+                    else {
+                        target = comm.HQloc;
+                        //System.err.println("retreating...");
                     }
                 }
                 if (target != null) {

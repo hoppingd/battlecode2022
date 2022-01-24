@@ -1,4 +1,4 @@
-package sageplayer;
+package healplayer;
 
 import battlecode.common.*;
 

@@ -1,4 +1,4 @@
-package dpsplayer;
+package healplayer;
 
 import battlecode.common.*;
 

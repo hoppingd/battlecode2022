@@ -1,10 +1,10 @@
-package dpsplayer;
+package healplayer;
 
 import battlecode.common.*;
 
-public class Soldier extends MyRobot {
+public class Sage extends MyRobot {
 
-    static final Direction[] moveDirections = {
+    static final Direction[] fleeDirections = {
             Direction.NORTH,
             Direction.NORTHEAST,
             Direction.EAST,
@@ -17,7 +17,6 @@ public class Soldier extends MyRobot {
 
     static final int LATTICE_CONGESTION = 0;
     static final int MIN_HEALTH_TO_REINFORCE = 11;
-    static final int MAX_TURNS_HEALING = 75;
 
     int birthday;
     int H, W;
@@ -25,14 +24,13 @@ public class Soldier extends MyRobot {
 
     MapLocation nearestCorner;
     int task = 0;
+    RobotInfo[] nearbyEnemies;
     double mapLeadScore;
     MapLocation target;
     MapLocation nearestLoggedEnemy;
     boolean healing = false;
-    int turnsHealing = 0;
-    RobotInfo[] nearbyEnemies;
 
-    public Soldier(RobotController rc){
+    public Sage(RobotController rc){
         super(rc);
         birthday = rc.getRoundNum();
         H = rc.getMapHeight();
@@ -41,36 +39,32 @@ public class Soldier extends MyRobot {
         enemyTeam = myTeam.opponent();
         comm.readHQloc();
         nearestCorner = getNearestCorner();
+        nearbyEnemies = rc.senseNearbyRobots(RobotType.SAGE.visionRadiusSquared, enemyTeam);
         mapLeadScore = (comm.leadScore / (double)comm.numArchons) * (400.0/(H*W));
-        nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
     }
 
     public void play() {
         target = null;
+        task = comm.getTask();
         MapLocation newNearest = comm.getLoggedEnemies();
         if (newNearest != null) {
             nearestLoggedEnemy = newNearest;
         }
         comm.readHQloc();
-        task = comm.getTask();
-        // finished healing
         if (rc.getHealth() == rc.getType().getMaxHealth(rc.getLevel())) {
             healing = false;
-            turnsHealing = 0;
         }
         if (!bfs.doMicro()) {
             tryMove();
         }
         tryAttack();
-        // if attacking, don't risk disintegration
-        if (!rc.isActionReady()) turnsHealing = 0;
     }
 
-    //TODO: prioritize builders over miners
+    // TODO: optimize health targeting for sage
     void tryAttack(){
-        nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
+        nearbyEnemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
         if (!rc.isActionReady()) return;
-        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SOLDIER.actionRadiusSquared, enemyTeam);
+        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SAGE.actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
         boolean attackerInRange = false;
         // don't attack miners if soldiers in view
@@ -85,6 +79,8 @@ public class Soldier extends MyRobot {
         }
         int bestHealth = 10000;
         int bestRubble = GameConstants.MAX_RUBBLE;
+        boolean canKill = false;
+        int chargeKills = 0;
         for (RobotInfo r : enemies) {
             MapLocation enemyLoc = r.getLocation();
             boolean isAttacker = r.type.canAttack();
@@ -96,25 +92,62 @@ public class Soldier extends MyRobot {
             } catch (Throwable t) {
                 t.printStackTrace();
             }
-            if (isAttacker && !attackerInRange) {
-                bestHealth = 10000;
-                bestRubble = rubble;
-                attackerInRange = true;
+            if (!canKill && r.getHealth() <= rc.getType().damage) {
+                canKill = true;
+                bestHealth = 0;
             }
-            // shoot lowest health with rubble as tiebreaker
-            if (r.health < bestHealth) {
-                bestHealth = r.health;
-                bestRubble = rubble;
-                bestLoc = enemyLoc;
+            if (isAttacker) {
+                if (!attackerInRange) {
+                    bestRubble = rubble;
+                    attackerInRange = true;
+                    if (!canKill && r.getHealth() <= rc.getType().damage) {
+                        canKill = true;
+                        bestHealth = 0;
+                    }
+                    else {
+                        canKill = false;
+                        bestHealth = 10000;
+                    }
+                }
+                if (r.getHealth() <= r.getType().getMaxHealth(r.getLevel()) * AnomalyType.CHARGE.sagePercentage) chargeKills++;
             }
-            else if (r.health == bestHealth && rubble < bestRubble) {
-                bestRubble = rubble;
-                bestLoc = enemyLoc;
+            // pick target
+            if (!canKill && r.getHealth() <= rc.getType().damage) canKill = true;
+            if (canKill) {
+                // shoot lowest health with rubble as tiebreaker
+                if (r.getHealth() <= rc.getType().damage && r.getHealth() > bestHealth) {
+                    bestHealth = r.getHealth();
+                    bestRubble = rubble;
+                    bestLoc = enemyLoc;
+                }
+                else if (r.getHealth() == bestHealth && rubble < bestRubble) {
+                    bestRubble = rubble;
+                    bestLoc = enemyLoc;
+                }
+            }
+            else {
+                if (r.getHealth() < bestHealth) {
+                    bestHealth = r.getHealth();
+                    bestRubble = rubble;
+                    bestLoc = enemyLoc;
+                }
+                else if (r.getHealth() == bestHealth && rubble < bestRubble) {
+                    bestRubble = rubble;
+                    bestLoc = enemyLoc;
+                }
             }
         }
         try {
             if (bestLoc != null) {
-                rc.attack(bestLoc);
+                if (chargeKills > 3) {
+                    rc.envision(AnomalyType.CHARGE);
+                }
+                else if (rc.senseRobotAtLocation(bestLoc).getType() == RobotType.ARCHON) {
+                    rc.envision(AnomalyType.FURY);
+                }
+                else {
+                    rc.attack(bestLoc);
+                }
             }
         } catch (Throwable t) {
             t.printStackTrace();
@@ -125,19 +158,15 @@ public class Soldier extends MyRobot {
     void tryMove(){
         rc.setIndicatorString("tryMove");
         if (!rc.isMovementReady()) return;
+        if (rc.getRoundNum() == birthday) {
+            task = comm.getTask();
+        }
         switch (task) {
             case 0: {// scout
 
                 break;
             }
             case 1: {// defensive lattice
-                /* chase code
-                MapLocation nearbyEnemy = enemyInSight();
-                if (nearbyEnemy != null) {
-                    bfs.move(nearbyEnemy);
-                    return;
-
-                 */
                 MapLocation myLoc = rc.getLocation();
                 if (rc.senseNearbyRobots(myLoc, 1, rc.getTeam()).length <= LATTICE_CONGESTION && validLattice(myLoc)) { // some spacing condition
                     return;
@@ -163,18 +192,10 @@ public class Soldier extends MyRobot {
                 else {
                     if (!healing) healing = true;
                     if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
-                        //System.err.println("healing...");
-                        turnsHealing++;
-                        if (turnsHealing >= MAX_TURNS_HEALING) {
-                            target = getMineProspect();
-                        }
-                        else {
-                            target = rc.getLocation();
-                        }
+                        target = rc.getLocation();
                     }
                     else {
                         target = comm.HQloc;
-                        //System.err.println("retreating...");
                     }
                 }
                 if (target == null) {
@@ -193,13 +214,7 @@ public class Soldier extends MyRobot {
                     if (!healing) healing = true;
                     if (rc.getLocation().isWithinDistanceSquared(comm.HQloc, RobotType.ARCHON.actionRadiusSquared)) {
                         //System.err.println("healing...");
-                        turnsHealing++;
-                        if (turnsHealing >= MAX_TURNS_HEALING) {
-                            target = getMineProspect();
-                        }
-                        else {
-                            target = rc.getLocation();
-                        }
+                        target = rc.getLocation();
                     }
                     else {
                         target = comm.HQloc;
@@ -245,7 +260,6 @@ public class Soldier extends MyRobot {
     }
 
     void senseEnemyArchons() { // check for enemy archon and write
-        RobotInfo[] nearbyEnemies = rc.senseNearbyRobots(RobotType.SOLDIER.visionRadiusSquared, enemyTeam);
         for (RobotInfo r : nearbyEnemies) {
             if (r.getType() == RobotType.ARCHON) {
                 comm.writeEnemyArchonLocation(r);
@@ -259,31 +273,6 @@ public class Soldier extends MyRobot {
 
             }
         }
-    }
-
-    MapLocation getMineProspect() {
-        MapLocation myLoc = rc.getLocation();
-        // consider giving up if too far away
-        MapLocation target = null;
-        int bestDist = 10000;
-        try {
-            if (rc.isActionReady() && rc.senseLead(rc.getLocation()) == 0) {
-                rc.disintegrate();
-            }
-            MapLocation[] cells = rc.getAllLocationsWithinRadiusSquared(myLoc, RobotType.SOLDIER.visionRadiusSquared);
-            for (MapLocation cell : cells){
-                if (rc.senseLead(cell) > 0 || (cell.distanceSquaredTo(comm.HQloc) >  RobotType.ARCHON.visionRadiusSquared)) continue;
-                int dist = myLoc.distanceSquaredTo(cell);
-                if (dist < bestDist) { // closest spot with no lead within turtle radius
-                    bestDist = dist;
-                    target = cell;
-                }
-            }
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        if (target == null) return comm.HQloc;
-        return target;
     }
 
     boolean validLattice(MapLocation loc) {

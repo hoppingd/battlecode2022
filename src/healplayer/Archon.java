@@ -1,4 +1,4 @@
-package sageplayer;
+package healplayer;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
@@ -530,18 +530,18 @@ public class Archon extends MyRobot {
         RobotInfo[] allies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, myTeam);
         MapLocation bestLoc = null;
         int lowestHP = 10000;
-        boolean attackerInRange = false;
+        boolean sageInRange = false;
         // lowest hp under max health, prioritizing attackers
         for (RobotInfo r : allies){
             if (!rc.canRepair(r.getLocation()) || r.getType() == RobotType.MINER) continue; // don't heal miners, since they will sack themselves
             int hp = r.getHealth();
-            if (!attackerInRange && r.getType().canAttack() && hp < r.getType().getMaxHealth(r.getLevel())) {
-                attackerInRange = true;
+            if (!sageInRange && r.getType() == RobotType.SAGE && hp < r.getType().getMaxHealth(r.getLevel())) {
+                sageInRange = true;
                 lowestHP = r.getHealth();
                 bestLoc = r.location;
             }
             if (hp > lowestHP && hp < r.getType().getMaxHealth(r.getLevel())) {
-                if (attackerInRange && !r.getType().canAttack()) continue;
+                if (sageInRange && r.getType() != RobotType.SAGE) continue;
                 lowestHP = hp;
                 bestLoc = r.location;
             }
