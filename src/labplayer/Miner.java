@@ -1,4 +1,4 @@
-package sageplayer;
+package labplayer;
 
 import battlecode.common.*;
 
@@ -19,6 +19,7 @@ public class Miner extends MyRobot {
     static final int DISINTEGRATE_HEALTH = 7;
     static final int MAX_EXPLORE_TURNS = 100;
 
+
     Direction[] dirs = Direction.allDirections();
     int H, W;
     Team myTeam, enemyTeam;
@@ -28,6 +29,7 @@ public class Miner extends MyRobot {
     double mapLeadScore;
     int minerCode = 0;
     int turnsWithoutMining = 0;
+    MapLocation[] mines;
 
     public Miner(RobotController rc){
         super(rc);
@@ -52,6 +54,7 @@ public class Miner extends MyRobot {
             else {
                 comm.setMinerCode(0);
             }
+            mines = rc.senseNearbyLocationsWithLead();
         }
         comm.getLoggedEnemies();
         nearbyEnemies = rc.senseNearbyRobots(RobotType.MINER.visionRadiusSquared, enemyTeam);
@@ -86,7 +89,7 @@ public class Miner extends MyRobot {
     }
 
     void tryDisintegrate() {
-        if (rc.getHealth() >= DISINTEGRATE_HEALTH && turnsWithoutMining < MAX_EXPLORE_TURNS) return;
+        if (rc.getHealth() >= DISINTEGRATE_HEALTH && turnsWithoutMining < MAX_EXPLORE_TURNS && (minerCode == 1 || rc.getRoundNum() < 200) || mines.length >= 23) return;
         if (!rc.isActionReady()) return;
         MapLocation myLoc = rc.getLocation();
         try {
@@ -175,7 +178,7 @@ public class Miner extends MyRobot {
 
     void tryMove() {
         MapLocation loc = flee();
-        if ((rc.getHealth() < DISINTEGRATE_HEALTH || turnsWithoutMining >= MAX_EXPLORE_TURNS) && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
+        if (mines.length < 23 && (rc.getHealth() < DISINTEGRATE_HEALTH || turnsWithoutMining >= MAX_EXPLORE_TURNS || (rc.getRoundNum() >= 200 && minerCode == 0)) && rc.isActionReady()) loc = getMineProspect(); // if too far from HQ, don't bother
         if (loc == null) loc = getClosestMine();
         if (loc != null){
             bfs.move(loc);
@@ -215,7 +218,7 @@ public class Miner extends MyRobot {
                 int bestRubble = rc.senseRubble(bestMine);
                 for (Direction dir : dirs) {
                     MapLocation prospect = bestMine.add(dir);
-                    if (!rc.canSenseLocation(prospect)) continue;
+                    if (!rc.canSenseLocation(prospect) || rc.isLocationOccupied(prospect)) continue;
                     int rubble = rc.senseRubble(prospect);
                     if (rubble < bestRubble) {
                         bestRubble = rubble;
@@ -230,6 +233,7 @@ public class Miner extends MyRobot {
         } catch (Throwable t) {
             t.printStackTrace();
         }
+        if (bestMine != null) rc.setIndicatorString(bestMine.toString());
         return bestMine;
     }
 

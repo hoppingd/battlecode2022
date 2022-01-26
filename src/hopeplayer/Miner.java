@@ -1,4 +1,4 @@
-package sageplayer;
+package hopeplayer;
 
 import battlecode.common.*;
 

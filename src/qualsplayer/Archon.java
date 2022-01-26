@@ -1,4 +1,4 @@
-package sageplayer;
+package qualsplayer;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
@@ -39,6 +39,8 @@ public class Archon extends MyRobot {
     static final int CRUNCH_ROUND = 1500;
     static final int MIN_LEAD_TO_MINE = 6;
     static final int MINES_TO_BUILD_LAB = 5;
+    static final int MIN_MAP_SIZE_LAB = 625;
+    static final int BUILDER_TURNS = 30;
 
     int H, W;
     Team myTeam, enemyTeam;
@@ -62,6 +64,7 @@ public class Archon extends MyRobot {
     // eckleburg            85      9           farm
 
     MapLocation mapCenter;
+    MapLocation[] mines;
 
     boolean arrived = false;
     int currRound = 0;
@@ -89,6 +92,7 @@ public class Archon extends MyRobot {
 
     public void play() {
         task = comm.getTask(); // check if emergency, if so we'll build soldiers
+        mines = rc.senseNearbyLocationsWithLead();
         if (comm.spawnID >= rc.getArchonCount()) comm.fixSpawnID(); // TODO: FIX spawn id if archon dies...
         currRound = rc.getRoundNum();
         currLead = rc.getTeamLeadAmount(myTeam);
@@ -107,13 +111,12 @@ public class Archon extends MyRobot {
         // SHOULD BUILD LAB
         if (currRound > birthday + 2) {
             if (!shouldBuildLab) {
-                if (currRound >= Communication.P4_START) {
+                if (currLead > 300 || currRound >= Communication.P4_START) {
                     comm.setShouldBuildLab();
                     shouldBuildLab = true;
                 }
                 else {
                     try {
-                        MapLocation[] mines = rc.senseNearbyLocationsWithLead();
                         if (task != 2 && mines.length >= MINES_TO_BUILD_LAB) {
                             comm.setShouldBuildLab();
                             shouldBuildLab = true;
@@ -123,7 +126,6 @@ public class Archon extends MyRobot {
                     }
                 }
             }
-
         }
         // CRUNCH TIME
         if (currRound >= CRUNCH_ROUND && rc.getArchonCount() < comm.numArchons) { // if we lost an archon, we need to try to get theirs
@@ -134,12 +136,12 @@ public class Archon extends MyRobot {
             checkForAttackers(); //sends emergency to all soldiers if x enemies in archon vision TODO: only if arrived?
             if (currRound > birthday + 2) {
                 comm.readHQloc();
-                if (minersBuilt >= P1_MINERS - comm.numArchons - P1_MINERS_MODIFIER || currRound > Communication.P2_START) { // condition for archons to start moving
+                if (minersBuilt >= P1_MINERS - comm.numArchons - P1_MINERS_MODIFIER || currRound >= Communication.P2_START) { // condition for archons to start moving
                     if (!rc.getLocation().equals(getTransformLocation())) {
                         try {
                             if (rc.isTransformReady()) {
                                 rc.transform();
-                                comm.incSpawnCounter(); // avoid getting stuck
+                                if (currRound <= comm.P2_START) comm.incSpawnCounter(); // avoid getting stuck
                                 //System.err.println("transforming in favor of: " + getTransformLocation());
                             }
                         } catch (Throwable t) {
@@ -156,7 +158,7 @@ public class Archon extends MyRobot {
         else {
             comm.readHQloc();
             tryMove();
-            comm.incSpawnCounter(); // avoid getting stuck;
+            if (currRound <= comm.P2_START) comm.incSpawnCounter(); // avoid getting stuck
         }
     }
 
@@ -245,10 +247,18 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildMiner() {
-        if (currGold > RobotType.SAGE.buildCostGold) return false;
         if (task != 2 && shouldBuildLab) {
             if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.MINER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.MINER.buildCostLead && !comm.builderIsBuilt())) return false;
+            if (comm.labIsBuilt() && arrived) {
+                if (currLead < 5*BUILDER_TURNS*comm.getDelayModifier() && comm.getSpawnCount() % 6 == 0) {
+                    return true;
+                }
+                else {
+                    return false;
+                }
+            }
         }
+        if (currGold >= RobotType.SAGE.buildCostGold) return false;
         // PHASE 1
         if (currRound < Communication.P2_START) {
             if (!arrived) {
@@ -295,10 +305,14 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildBuilder() {
-        if (currGold > RobotType.SAGE.buildCostGold) return false;
-        if (task != 2 && shouldBuildLab) {
+        if (task != 2 && shouldBuildLab && arrived) {
+            //System.err.println(comm.getSpawnCount() + "," + BUILDER_TURNS*comm.getDelayModifier());
             if (!comm.builderIsBuilt()) return true;
+            if (comm.labIsBuilt() && currGold > 0 && currLead >= 5*BUILDER_TURNS*comm.getDelayModifier()) {
+                return true; // checking if gold is greater than 0 as a means to know lab is repaired
+            }
         }
+        if (currGold >= RobotType.SAGE.buildCostGold) return false;
         // PHASE 1
         if (currRound < Communication.P2_START) {
             if (arrived && builderCount < P1_BUILDERS && (mapLeadScore > Communication.HIGH_LEAD_THRESHOLD)) return true; // early towers
@@ -321,9 +335,10 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildSoldier() {
-        if (currGold > RobotType.SAGE.buildCostGold) return false;
+        if (currGold >= RobotType.SAGE.buildCostGold) return false;
         if (task != 2 && shouldBuildLab) {
             if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.builderIsBuilt())) return false;
+            if (currRound >= Communication.P3_START) return false;
         }
         // PHASE 1
         if (currRound < Communication.P2_START) {
@@ -366,12 +381,12 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildSage() {
-        return true;
+        return  rc.getRoundNum() < Communication.P3_START || (comm.getSpawnCount() % 6 != 0 && currLead < 5*BUILDER_TURNS*comm.getDelayModifier());
     }
 
     //TODO: cleanup, spawn toward emergency, spawn in safe location, etc
     boolean tryBuild() {
-        if (currRound < Communication.P3_START && comm.getSpawnCount() % rc.getArchonCount() != comm.spawnID) return false;
+        if (currRound < Communication.P2_START && comm.getSpawnCount() % rc.getArchonCount() != comm.spawnID) return false;
         if (!rc.isActionReady()) return false;
         MapLocation myLoc = rc.getLocation();
         if (currLead >= RobotType.MINER.buildCostLead && shouldBuildMiner()) {
@@ -421,7 +436,7 @@ public class Archon extends MyRobot {
                     }
                 }
                 if (bestLoc != null) {
-                    rc.buildRobot(RobotType.MINER, myLoc.directionTo(bestLoc)); // we simply spam soldiers
+                    rc.buildRobot(RobotType.MINER, myLoc.directionTo(bestLoc));
                     comm.incSpawnCounter();
                     minersBuilt++;
                     return true;
@@ -450,6 +465,8 @@ public class Archon extends MyRobot {
                     rc.buildRobot(RobotType.BUILDER, myLoc.directionTo(bestLoc));
                     comm.setBuilderBuilt();
                     comm.incSpawnCounter();
+                    comm.incDelayModifier();
+                    if(comm.getDelayModifier() == 8) comm.setMutatorFlag();
                     builderCount++;
                     return true;
                 }
@@ -514,8 +531,8 @@ public class Archon extends MyRobot {
                     }
                 }
                 if (bestLoc != null) {
-                    comm.incSpawnCounter();
                     rc.buildRobot(RobotType.SAGE, myLoc.directionTo(bestLoc));
+                    comm.incSpawnCounter();
                     return true;
                 }
             } catch (Throwable t) {

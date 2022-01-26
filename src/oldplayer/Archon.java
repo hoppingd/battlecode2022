@@ -1,4 +1,4 @@
-package sageplayer;
+package oldplayer;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
@@ -39,6 +39,7 @@ public class Archon extends MyRobot {
     static final int CRUNCH_ROUND = 1500;
     static final int MIN_LEAD_TO_MINE = 6;
     static final int MINES_TO_BUILD_LAB = 5;
+    static final int MIN_MAP_SIZE_LAB = 625;
 
     int H, W;
     Team myTeam, enemyTeam;
@@ -62,6 +63,7 @@ public class Archon extends MyRobot {
     // eckleburg            85      9           farm
 
     MapLocation mapCenter;
+    MapLocation[] mines;
 
     boolean arrived = false;
     int currRound = 0;
@@ -89,6 +91,7 @@ public class Archon extends MyRobot {
 
     public void play() {
         task = comm.getTask(); // check if emergency, if so we'll build soldiers
+        mines = rc.senseNearbyLocationsWithLead();
         if (comm.spawnID >= rc.getArchonCount()) comm.fixSpawnID(); // TODO: FIX spawn id if archon dies...
         currRound = rc.getRoundNum();
         currLead = rc.getTeamLeadAmount(myTeam);
@@ -113,7 +116,6 @@ public class Archon extends MyRobot {
                 }
                 else {
                     try {
-                        MapLocation[] mines = rc.senseNearbyLocationsWithLead();
                         if (task != 2 && mines.length >= MINES_TO_BUILD_LAB) {
                             comm.setShouldBuildLab();
                             shouldBuildLab = true;
@@ -245,7 +247,7 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildMiner() {
-        if (currGold > RobotType.SAGE.buildCostGold) return false;
+        if (currGold >= RobotType.SAGE.buildCostGold) return false;
         if (task != 2 && shouldBuildLab) {
             if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.MINER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.MINER.buildCostLead && !comm.builderIsBuilt())) return false;
         }
@@ -295,7 +297,7 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildBuilder() {
-        if (currGold > RobotType.SAGE.buildCostGold) return false;
+        if (currGold >= RobotType.SAGE.buildCostGold) return false;
         if (task != 2 && shouldBuildLab) {
             if (!comm.builderIsBuilt()) return true;
         }
@@ -321,7 +323,7 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildSoldier() {
-        if (currGold > RobotType.SAGE.buildCostGold) return false;
+        if (currGold >= RobotType.SAGE.buildCostGold) return false;
         if (task != 2 && shouldBuildLab) {
             if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.builderIsBuilt())) return false;
         }

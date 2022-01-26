@@ -1,4 +1,4 @@
-package sageplayer;
+package hopeplayer;
 
 // deciding the HQ:
 // on high overall lead maps, we should not move the archons
@@ -245,7 +245,7 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildMiner() {
-        if (currGold > RobotType.SAGE.buildCostGold) return false;
+        if (currGold >= RobotType.SAGE.buildCostGold) return false;
         if (task != 2 && shouldBuildLab) {
             if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.MINER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.MINER.buildCostLead && !comm.builderIsBuilt())) return false;
         }
@@ -295,7 +295,7 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildBuilder() {
-        if (currGold > RobotType.SAGE.buildCostGold) return false;
+        if (currGold >= RobotType.SAGE.buildCostGold) return false;
         if (task != 2 && shouldBuildLab) {
             if (!comm.builderIsBuilt()) return true;
         }
@@ -321,7 +321,7 @@ public class Archon extends MyRobot {
     }
 
     boolean shouldBuildSoldier() {
-        if (currGold > RobotType.SAGE.buildCostGold) return false;
+        if (currGold >= RobotType.SAGE.buildCostGold) return false;
         if (task != 2 && shouldBuildLab) {
             if ((currLead < RobotType.LABORATORY.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.labIsBuilt()) || (currLead < RobotType.BUILDER.buildCostLead + RobotType.SOLDIER.buildCostLead && !comm.builderIsBuilt())) return false;
         }

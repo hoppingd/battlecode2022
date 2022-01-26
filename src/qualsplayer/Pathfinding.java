@@ -1,4 +1,4 @@
-package sageplayer;
+package qualsplayer;
 
 import battlecode.common.*;
 
@@ -9,6 +9,7 @@ public class Pathfinding {
 
     static final int MIN_HEALTH_TO_REINFORCE_SOLDIER = 11; // soldiers and sages
     static final int MIN_HEALTH_TO_REINFORCE_SAGE = 46;
+    static final int MAX_RUBBLE_INCREASE = 20;
 
     RobotController rc;
     Communication comm;
@@ -239,7 +240,7 @@ public class Pathfinding {
             int bestIndex = 8;
             for (int i = 7; i >= 0; i--) {
                 if (!rc.canMove(directions[i])) continue;
-                //if (microInfo[i].myRubble - 20 > minRubble) continue; // avoid significantly higher rubble
+                if (microInfo[i].myRubble - MAX_RUBBLE_INCREASE > minRubble) continue; // avoid significantly higher rubble
                 if (!microInfo[bestIndex].isBetter(microInfo[i])) {
                     bestIndex = i;
                     //System.err.println("thought " + microInfo[i].loc + " was better");
@@ -302,21 +303,23 @@ public class Pathfinding {
                             }
                         }
                         else if (rc.getType() == RobotType.SAGE) {
-                            RobotInfo[] enemiesToAttack = rc.senseNearbyRobots(RobotType.SAGE.actionRadiusSquared, enemyTeam);
+                            RobotInfo[] enemiesToAttack = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
                             MapLocation bestLoc = null;
                             boolean attackerInRange = false;
                             // don't attack miners if soldiers in view
-                            for (RobotInfo r : enemiesToAttack) {
+                            for (RobotInfo r : enemies) {
                                 if (r.type.canAttack()) {
-                                    comm.writeEnemyToLog(r.location);
                                     attackerInRange = true;
                                 }
-                                else if (r.getType() == RobotType.BUILDER) {
+                                if (r.getType() != RobotType.MINER) {
+                                    comm.writeEnemyToLog(r.location);
+                                }
+                                if (r.getType() == RobotType.BUILDER || r.getType() == RobotType.LABORATORY) {
                                     comm.setTask(4);
                                 }
                             }
                             int bestHealth = 10000;
-                            int bestRubble = GameConstants.MAX_RUBBLE;
+                            int bestRubble = GameConstants.MAX_RUBBLE + 1;
                             boolean canKill = false;
                             int chargeKills = 0;
                             for (RobotInfo r : enemiesToAttack) {
@@ -324,32 +327,24 @@ public class Pathfinding {
                                 boolean isAttacker = r.type.canAttack();
                                 // if there are attackers, ignore all non-attackers and reset variables
                                 if (!isAttacker && attackerInRange) continue;
+                                if (!canKill && r.getHealth() <= rc.getType().damage) {
+                                    canKill = true;
+                                    bestHealth = 0;
+                                }
                                 int rubble = GameConstants.MAX_RUBBLE;
                                 try {
                                     rubble = rc.senseRubble(r.location);
                                 } catch (Throwable t) {
                                     t.printStackTrace();
                                 }
-                                // pick target
-                                if (!canKill && r.getHealth() <= rc.getType().damage) {
-                                    canKill = true;
-                                    bestHealth = 0;
-                                }
                                 if (isAttacker) {
-                                    if (!attackerInRange) {
-                                        bestRubble = rubble;
-                                        attackerInRange = true;
-                                        if (!canKill && r.getHealth() <= rc.getType().damage) {
-                                            canKill = true;
-                                            bestHealth = 0;
-                                        }
-                                        else {
-                                            canKill = false;
-                                            bestHealth = 10000;
-                                        }
+                                    if (!canKill && r.getHealth() <= rc.getType().damage) {
+                                        canKill = true;
+                                        bestHealth = 0;
                                     }
-                                    if (r.getHealth() <= r.getType().getMaxHealth(r.getLevel()) * AnomalyType.CHARGE.sagePercentage) chargeKills++;
                                 }
+                                // pick target
+                                if (!canKill && r.getHealth() <= rc.getType().damage) canKill = true;
                                 if (canKill) {
                                     // shoot lowest health with rubble as tiebreaker
                                     if (r.getHealth() <= rc.getType().damage && r.getHealth() > bestHealth) {
@@ -376,11 +371,15 @@ public class Pathfinding {
                             }
                             try {
                                 if (bestLoc != null) {
+                                    RobotInfo r = rc.senseRobotAtLocation(bestLoc);
                                     if (chargeKills > 3) {
                                         rc.envision(AnomalyType.CHARGE);
                                     }
-                                    else if (rc.senseRobotAtLocation(bestLoc).getType() == RobotType.ARCHON) {
+                                    else if (r.getType() == RobotType.ARCHON) {
                                         rc.envision(AnomalyType.FURY);
+                                    }
+                                    else if (r.getHealth() <= r.getType().getMaxHealth(r.getLevel()) * AnomalyType.CHARGE.sagePercentage) {
+                                        rc.envision(AnomalyType.CHARGE);
                                     }
                                     else {
                                         rc.attack(bestLoc);

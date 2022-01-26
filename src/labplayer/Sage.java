@@ -1,4 +1,4 @@
-package sageplayer;
+package labplayer;
 
 import battlecode.common.*;
 
@@ -64,7 +64,7 @@ public class Sage extends MyRobot {
     void tryAttack(){
         nearbyEnemies = rc.senseNearbyRobots(rc.getType().visionRadiusSquared, enemyTeam);
         if (!rc.isActionReady()) return;
-        RobotInfo[] enemies = rc.senseNearbyRobots(RobotType.SAGE.actionRadiusSquared, enemyTeam);
+        RobotInfo[] enemies = rc.senseNearbyRobots(rc.getType().actionRadiusSquared, enemyTeam);
         MapLocation bestLoc = null;
         boolean attackerInRange = false;
         // don't attack miners if soldiers in view
@@ -80,7 +80,7 @@ public class Sage extends MyRobot {
             }
         }
         int bestHealth = 10000;
-        int bestRubble = GameConstants.MAX_RUBBLE;
+        int bestRubble = GameConstants.MAX_RUBBLE + 1;
         boolean canKill = false;
         int chargeKills = 0;
         for (RobotInfo r : enemies) {
@@ -88,28 +88,20 @@ public class Sage extends MyRobot {
             boolean isAttacker = r.type.canAttack();
             // if there are attackers, ignore all non-attackers and reset variables
             if (!isAttacker && attackerInRange) continue;
+            if (!canKill && r.getHealth() <= rc.getType().damage) {
+                canKill = true;
+                bestHealth = 0;
+            }
             int rubble = GameConstants.MAX_RUBBLE;
             try {
                 rubble = rc.senseRubble(r.location);
             } catch (Throwable t) {
                 t.printStackTrace();
             }
-            if (!canKill && r.getHealth() <= rc.getType().damage) {
-                canKill = true;
-                bestHealth = 0;
-            }
             if (isAttacker) {
-                if (!attackerInRange) {
-                    bestRubble = rubble;
-                    attackerInRange = true;
-                    if (!canKill && r.getHealth() <= rc.getType().damage) {
-                        canKill = true;
-                        bestHealth = 0;
-                    }
-                    else {
-                        canKill = false;
-                        bestHealth = 10000;
-                    }
+                if (!canKill && r.getHealth() <= rc.getType().damage) {
+                    canKill = true;
+                    bestHealth = 0;
                 }
                 if (r.getHealth() <= r.getType().getMaxHealth(r.getLevel()) * AnomalyType.CHARGE.sagePercentage) chargeKills++;
             }
@@ -141,11 +133,15 @@ public class Sage extends MyRobot {
         }
         try {
             if (bestLoc != null) {
+                RobotInfo r = rc.senseRobotAtLocation(bestLoc);
                 if (chargeKills > 3) {
                     rc.envision(AnomalyType.CHARGE);
                 }
-                else if (rc.senseRobotAtLocation(bestLoc).getType() == RobotType.ARCHON) {
+                else if (r.getType() == RobotType.ARCHON) {
                     rc.envision(AnomalyType.FURY);
+                }
+                else if (r.getHealth() <= r.getType().getMaxHealth(r.getLevel()) * AnomalyType.CHARGE.sagePercentage) {
+                    rc.envision(AnomalyType.CHARGE);
                 }
                 else {
                     rc.attack(bestLoc);

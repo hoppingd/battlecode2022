@@ -76,10 +76,12 @@ public class Soldier extends MyRobot {
         // don't attack miners if soldiers in view
         for (RobotInfo r : nearbyEnemies) {
             if (r.type.canAttack()) {
-                comm.writeEnemyToLog(r.location);
                 attackerInRange = true;
             }
-            else if (r.getType() == RobotType.BUILDER) {
+            if (r.getType() != RobotType.MINER) {
+                comm.writeEnemyToLog(r.location);
+            }
+            if (r.getType() == RobotType.BUILDER || r.getType() == RobotType.LABORATORY) {
                 comm.setTask(4);
             }
         }
