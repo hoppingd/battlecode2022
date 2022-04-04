@@ -1,6 +1,8 @@
 # Battlecode 2022 Scaffold
 
-This is the Battlecode 2022 repository for Team Ruby Grapefruit. The team was composed of myself (Daniel Hopping), William Adamson, and Braden Honea. We narrowly missed out on the final tournament by placing in the Top 12 of US Qualifying. Read https://play.battlecode.org/getting-started!
+This is the Battlecode 2022 repository for Team Ruby Grapefruit. The team was composed of Daniel Hopping (previously a member of [Oak's Last Disciple](https://github.com/IvanGeffner/BC19) and [Java Best Waifu](https://github.com/IvanGeffner/battlecode2020)), as well as first-time participants William Adamson and Braden Honea. They narrowly missed out on the final tournament by placing in the Top 12 of US Qualifying. The final game against Team Code Monkeys can be seen [here](https://youtu.be/giZi8DKS1cM?t=10525). 
+
+Read https://play.battlecode.org/getting-started!
 
 ### Project Structure
 
