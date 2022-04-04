@@ -1,6 +1,6 @@
 # Battlecode 2022 Scaffold
 
-This is the Battlecode 2022 scaffold, containing an `examplefuncsplayer`. Read https://play.battlecode.org/getting-started!
+This is the Battlecode 2022 repository for Team Ruby Grapefruit. The team was led by Daniel Hopping, with assitance from William Adamson and Braden Honea. They narrowly missed out on the final tournament by placing in the Top 12 of Qualifying. Read https://play.battlecode.org/getting-started!
 
 ### Project Structure
 
